@@ -77,9 +77,24 @@ PARTIES = {
         "funds_int": 5,          
         "members": 20000,
         "factions": {
-            "reformist": 30,     # Besteiro
-            "centrist": 40,      # Prieto
-            "revolutionary": 30  # Caballero
+            "reformist": {
+                "name": "Besteiristas", 
+                "strength": 30, 
+                "dissent": 10,       
+                "tag": "moderate"
+            },
+            "centrist": {
+                "name": "Priestistas",    
+                "strength": 40, 
+                "dissent": 0,        
+                "tag": "center"
+            },
+            "revolutionary": {
+                "name": "Caballeristas",  
+                "strength": 30, 
+                "dissent": 30,       
+                "tag": "left"
+            }
         },
         "relations": {
             PARTY_AR: 75,
@@ -93,11 +108,24 @@ PARTIES = {
     PARTY_AR: {
         "name": "Acción Rep.",
         "full_name": "Acción Republicana",
-        "color": "#7B3F00",      # Braun/Dunkelrot
+        "color": "#800080",      # Lila
         "ideology_index": 3,     # Mitte-Links
         "funds_int": 4,
         "members": 5000,
-        "factions": {"intellectuals": 90, "jacobins": 10},
+        "factions": {
+            "intellectuals": {
+                "name": "Ateneístas", 
+                "strength": 80, 
+                "dissent": 10,        
+                "tag": "center"
+            },
+            "jacobins": {
+                "name": "Jacobinos", 
+                "strength": 20, 
+                "dissent": 30, 
+                "tag": "left"
+            }
+        },
         "relations": {
             PARTY_PSOE: 70,
             PARTY_DLR: 40,
@@ -200,8 +228,8 @@ PARTIES = {
         "full_name": "Confederación Española de Derechas Autónomas",
         "color": "#000000",      # Schwarz
         "ideology_index": 8,     # Rechts-Konservativ
-        "funds_int": 15,         # Massiv finanziert von Landbesitzern
-        "members": 50000,        # Wird zur Massenpartei
+        "funds_int": 15,         
+        "members": 50000,        
         "factions": {"legalists": 60, "extremists": 40},
         "relations": {"church": 100, "army": 70, PARTY_PSOE: 0}
     },
@@ -211,7 +239,7 @@ PARTIES = {
         "full_name": "Renovación Española / Comunión Tradicionalista",
         "color": "#4B0082",      # Indigo/Royal Purple
         "ideology_index": 9,     # Reationär
-        "funds_int": 20,         # Der alte Adel
+        "funds_int": 20,         
         "members": 5000,
         "factions": {"alfonsinos": 50, "carlistas": 50},
         "relations": {"army": 90, "church": 90}
@@ -222,8 +250,8 @@ PARTIES = {
         "full_name": "Falange Española",
         "color": "#202020",      # Fast Schwarz / Dunkelblau
         "ideology_index": 10,    # Faschistisch
-        "funds_int": 2,          # Am Anfang arm
-        "members": 200,          # Am Anfang winzig
+        "funds_int": 2,          
+        "members": 200,          
         "factions": {"joseantonianos": 100},
         "relations": {"army": 50}
     },
@@ -320,7 +348,7 @@ STATE_START = {
         },
         "workers_rural": {
             PARTY_PSOE: 0.450, # Landarbeiter im Süden
-            PARTY_CEDA: 0.300, # Kleinbauern im Norden (sehr katholisch!)
+            PARTY_CEDA: 0.300, # Kleinbauern im Norden (katholisch)
             PARTY_MON: 0.150,  # Durch Caciques gezwungen
             PARTY_CNT: 0.100   # Wählen oft gar nicht (Abstention), aber wir tracken es
         },
@@ -330,6 +358,12 @@ STATE_START = {
             PARTY_AR: 0.200,
             PARTY_PCE: 0.100
         }
+    },
+
+    "government": {
+        "coalition": [PARTY_PSOE, PARTY_AR, PARTY_DLR, PARTY_PRR], # Die provisorische Regierung
+        "is_minority": False,
+        "next_election": {"year": 1931, "month": 6}
     },
 
     # Das Parlament (Las Cortes Generales)
@@ -360,7 +394,8 @@ STATE_START = {
     # KERN-METRIKEN (Abstrakt)
     "metrics": {
         "public_order": 60,
-        "judicial_loyalty": 20      # Richter
+        "judicial_loyalty": 20,      # Richter
+        "coalition_stability": 50 
     },
 
     # SICHERHEIT
@@ -377,6 +412,13 @@ STATE_START = {
             "name": "Carabineros", "manpower": 15000, "loyalty": 50, 
             "equipment": 40, "readiness": 60
         }
+    },
+
+    "land_ownership": {
+        "latifundios": 65.0,    # Großgrundbesitz (Aristokratie/Kirche)
+        "minifundios": 25.0,    # Kleinbauern (oft im Norden)
+        "collectivized": 0.0,   # Reform-Land / Kollektive (Ziel der Linken)
+        "state_owned": 10.0     # Gemeindeland / Staatlich
     },
 
     # MILITÄR

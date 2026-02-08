@@ -1,6 +1,11 @@
+import sys
+import os
 import streamlit as st
 import pandas as pd
 import altair as alt
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import content.game_data as gd
 
 # --- HELPER FUNCTIONS ---
@@ -186,3 +191,89 @@ def render_sidebar():
             st.session_state.current_event_id = "1931_june_elections"
             st.session_state.last_outcome_text = None
             st.rerun()
+
+def render_vote_result(vote_data):
+    """Zeigt das Ergebnis einer Abstimmung an."""
+    yes = vote_data['votes']['yes']
+    no = vote_data['votes']['no']
+    abst = vote_data['votes']['abstain']
+    total = yes + no + abst
+    threshold = total // 2 + 1
+    
+    st.markdown("### 🗳️ Parliamentary Vote Result")
+
+    yes_w  = max(1, yes)
+    abst_w = max(1, abst)
+    no_w   = max(1, no)
+    
+    # Visueller Balken
+    c1, c2, c3 = st.columns([yes_w, abst_w, no_w])
+    c1.success(f"YES: {yes}")
+    if abst > 0: c2.warning(f"ABS: {abst}")
+    c3.error(f"NO: {no}")
+    
+    if yes >= threshold:
+        st.success(f"**BILL PASSED** ({yes} vs {no})")
+    else:
+        st.error(f"**BILL FAILED** ({yes} vs {no})")
+        
+    # Details (Wer hat wie gestimmt?)
+    with st.expander("📜 Diario de Sesiones", expanded=True):
+        for entry in vote_data['details']:
+            st.markdown(f"**:{entry['color']}[{entry['party']}]** — {entry['text']}")
+
+def render_desk_layout(hand, time_units):
+    """Zeigt Stapel oben und Hand unten."""
+    st.markdown(f"### 🕰️ Time Remaining: {time_units} Weeks")
+    
+    # ZONE 1: STACKS
+    col1, col2 = st.columns(2)
+    hand_full = len(hand) >= 5
+    action = None
+    
+    with col1:
+        st.info("**🏛️ State Affairs**\n\nLegislation, Ministries")
+        if not hand_full:
+            if st.button("Draw State Card", key="draw_s", use_container_width=True): action = ("draw", "state")
+        else: st.button("Hand Full", disabled=True, key="dis_s", use_container_width=True)
+
+    with col2:
+        st.warning("**🚩 Party & Society**\n\nUnions, Factions")
+        if not hand_full:
+            if st.button("Draw Party Card", key="draw_p", use_container_width=True): action = ("draw", "party")
+        else: st.button("Hand Full", disabled=True, key="dis_p", use_container_width=True)
+
+    if action: return action
+
+    st.divider()
+
+    # ZONE 2: HAND
+    st.markdown("#### 📂 Active Dossiers")
+    if not hand: st.caption("Empty.")
+    
+    cols = st.columns(len(hand)) if hand else [st.container()]
+    
+    for i, card in enumerate(hand):
+        with cols[i]:
+            c_type = card.get('type', 'initiative')
+            icon = "⚡" if c_type == 'reactive' else "📜"
+            
+            with st.container(border=True):
+                st.markdown(f"**{icon} {card['title']}**")
+                st.caption(f"{card['category']}")
+                if time_units > 0:
+                    if st.button("Open", key=f"op_{card['id']}"): return ("play", card)
+                else: st.caption("No Time")
+    return None
+
+def render_card_detail(card):
+    st.markdown(f"### 📂 {card['title']}")
+    st.markdown(card['text'])
+    st.divider()
+    
+    decision = None
+    for opt in card['options']:
+        if st.button(opt['text']): decision = opt
+            
+    if st.button("Cancel"): return "CANCEL"
+    return decision

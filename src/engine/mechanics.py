@@ -3,20 +3,24 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from content.initiatives.politics.coalition_crisis import CoalitionCrisisEvent
+from content.initiatives.party.faction_schism import FactionSchismEvent
+from content.events.historical.burning_convents import BurningConventsEvent
+
 import random
 import content.game_data as gd
+
+# --- BASIC CALCULATIONS ---
 
 def calculate_outcome(base_chance, modifiers, game_state):
     """
     Berechnet die Wahrscheinlichkeit und würfelt.
-    
     Args:
         base_chance (int): Grundchance (0-100).
         modifiers (dict): Welche Stats beeinflussen das? 
                           z.B. {'public_order': 0.5} (Order hilft halb stark)
                           z.B. {'army_loyalty': -1.0} (Loyalty schadet voll)
         game_state (session_state): Damit wir auf die aktuellen Werte zugreifen können.
-        
     Returns:
         success (bool): Hat es geklappt?
         roll (int): Was wurde gewürfelt?
@@ -26,13 +30,11 @@ def calculate_outcome(base_chance, modifiers, game_state):
     current_chance = base_chance
     breakdown = [f"Base Probability: {base_chance}%"]
     
-    # Get the game metrics
     metrics = game_state.metrics
     
     for stat_key, weight in modifiers.items():
         if stat_key in metrics:
             val = metrics[stat_key]
-            # 50 as the neutral point
             # > 50 helps, < 50 hurts
             deviation = val - 50
             effect = int(deviation * weight)
@@ -44,8 +46,7 @@ def calculate_outcome(base_chance, modifiers, game_state):
 
     # Limitation: Immer min 5% Chance, max 95%
     final_chance = max(5, min(95, current_chance))
-    
-    # Dice roll
+
     roll = random.randint(1, 100)
     success = roll <= final_chance
     
@@ -55,8 +56,7 @@ def calculate_election_results(game_state):
     """
     Simuliert die Wahl basierend auf den aktuellen Demographien.
     """
-    # 1. Bevölkerungsgewichtung (Wie viele Menschen sind in dieser Gruppe?)
-    # Aristokratie ist klein (1), Bauern sind riesig (15).
+    # 1. Bevölkerungsgewichtung
     CLASS_WEIGHTS = {
         "aristocracy": 1,
         "clergy": 2,
@@ -64,7 +64,7 @@ def calculate_election_results(game_state):
         "workers_urban": 10,
         "workers_rural": 15,
         "soldiers": 3,
-        "catalans": 4,  # Regionale Blöcke
+        "catalans": 4,  
         "basques": 2
     }
     
@@ -73,12 +73,12 @@ def calculate_election_results(game_state):
 
     # 2. Stimmen auszählen
     for group_name, weight in CLASS_WEIGHTS.items():
-        # Hole die Parteipräferenzen dieser Gruppe (z.B. {PSOE: 0.6, DLR: 0.4})
+        # Parteipräferenzen (z.B. {PSOE: 0.6, DLR: 0.4})
         if group_name in demographics:
             preferences = demographics[group_name]
             
             for party_id, percentage in preferences.items():
-                # Berechnung: Gewicht der Gruppe * Prozentanteil
+                # Gewicht der Gruppe * Prozentanteil
                 vote_share = weight * percentage
                 
                 # Zur Partei addieren
@@ -114,56 +114,419 @@ def calculate_election_results(game_state):
         
     return new_seats
 
-def shift_voter_preference(game_state, class_name, party_id, change_amount):
+# --- VOTER SHIFTING ---
+
+def apply_demographic_vector(state, group_name, changes):
     """
-    Ändert die Beliebtheit einer Partei in einer Klasse und gleicht die anderen aus.
+    Wendet Änderungen an und gleicht den Rest automatisch aus.
+    changes = {PARTY_ID: 0.05, OTHER_PARTY: -0.02}
+    """
+    if 'election_demographics' not in state: return
+    demos = state.election_demographics
+    if group_name not in demos: return
+    
+    preferences = demos[group_name]
+    net_change = 0.0
+    active_parties = []
+    logs = []
+
+    for party_id, amount in changes.items():
+        if party_id not in preferences: preferences[party_id] = 0.0
+        old_val = preferences[party_id]
+        new_val = max(0.0, old_val + amount)
+        actual_diff = new_val - old_val
+        
+        preferences[party_id] = new_val
+        net_change += actual_diff
+        active_parties.append(party_id)
+        
+        p_name = gd.PARTIES.get(party_id, gd.PARTIES["others"])['name']
+        if abs(actual_diff) > 0.001:
+            logs.append(f"{p_name} {actual_diff*100:+.1f}%")
+
+    # 2. Ausgleich auf Passive Parteien
+    passive_parties = [p for p in preferences if p not in active_parties]
+    passive_sum = sum(preferences[p] for p in passive_parties)
+    
+    if passive_parties and abs(net_change) > 0.0001:
+        if net_change > 0: # Vergabe des Überschusses
+            if passive_sum > 0:
+                for p in passive_parties:
+                    share = preferences[p] / passive_sum
+                    deduction = net_change * share
+                    preferences[p] = max(0.0, preferences[p] - deduction)
+        
+        elif net_change < 0: # Verteilung des Überschusses
+            gain_total = abs(net_change)
+            if passive_sum > 0:
+                 for p in passive_parties:
+                    share = preferences[p] / passive_sum
+                    preferences[p] += gain_total * share
+            elif "others" in preferences:
+                     preferences["others"] += gain_total
+
+    # 3. Sicherheits-Normalisierung
+    total = sum(preferences.values())
+    if total != 0:
+        for p in preferences: preferences[p] /= total
+        
+    if logs: return f"Shift in {group_name}: " + ", ".join(logs)
+    return None
+
+def update_voter_sentiment(state):
+    """Nur Bestrafung bei Wut (<35). Kein Snowball."""
+    if 'society' not in state: return
+    
+    gov_parties = state.government['coalition']
+    
+    # Drift target
+    opposition_map = {
+        "aristocracy": gd.PARTY_MON,
+        "clergy": gd.PARTY_CEDA,
+        "bourgeoisie": gd.PARTY_CEDA,
+        "workers_urban": gd.PARTY_PCE, 
+        "workers_rural": gd.PARTY_CNT,
+        "soldiers": gd.PARTY_FAL
+    }
+    
+    impact_reports = []
+
+    for group, satisfaction in state.society.items():
+        if group in state.election_demographics and satisfaction < 35:
+            # 34 -> 0.1% Verlust. 0 -> 3.5% Verlust pro Monat.
+            loss = (35 - satisfaction) / 1000
+            target = opposition_map.get(group, gd.PARTY_MON)
+            
+            mech_msg = apply_demographic_vector(state, group, {target: loss})
+            
+            if loss > 0.005:
+                impact_reports.append(f"{group.title()} unhappy: Opposition gains ground.")
+
+    return impact_reports
+
+# --- FACTIONS ---
+
+def modify_faction_dissent(state, target_tag, amount):
+    if 'my_factions' not in state:
+        import copy
+        state.my_factions = copy.deepcopy(gd.PARTIES[state.player_party]['factions'])
+
+    affected_list = []
+    
+    for key, faction in state.my_factions.items():
+        should_modify = False
+        
+        # Tag Matching Logik
+        if target_tag == "all":
+            should_modify = True
+        elif target_tag == faction['tag']:
+            should_modify = True
+        elif target_tag.startswith("not_") and faction['tag'] != target_tag[4:]:
+            should_modify = True
+            
+        if should_modify:
+            # Dissent ändern (0 bis 100)
+            old_val = faction['dissent']
+            new_val = max(0, min(100, old_val + amount))
+            faction['dissent'] = new_val
+            
+            diff = new_val - old_val
+            if diff != 0:
+                sign = "+" if diff > 0 else ""
+                affected_list.append(f"{faction['name']} ({sign}{diff} Dissent)")
+            
+    return affected_list
+
+def execute_faction_split(state, faction_key):
+    """
+    Entfernt Fration
+    """
+    if 'my_factions' not in state: return "Error: No factions found."
+
+    factions = state.my_factions
+    
+    if faction_key not in factions:
+        return "Error: Faction not found."
+
+    leaving_faction = factions[faction_key]
+    lost_strength = leaving_faction['strength']
+    lost_name = leaving_faction['name']
+
+    party_id = state.player_party
+    current_members = gd.PARTIES[party_id]['members']
+    members_lost = int(current_members * (lost_strength / 100))
+    
+    if 'party_members' not in state:
+        state.party_members = current_members
+    state.party_members -= members_lost
+
+    del factions[faction_key]
+
+    remaining_strength_sum = sum(f['strength'] for f in factions.values())
+
+    if remaining_strength_sum > 0:
+        factor = 100 / remaining_strength_sum
+        
+        recalc_details = []
+        for f_key, f_data in factions.items():
+            old_s = f_data['strength']
+            new_s = round(old_s * factor, 1) # Runden
+            f_data['strength'] = new_s
+            recalc_details.append(f"{f_data['name']}: {old_s}% -> {new_s}%")
+            
+    else:
+        # Partei ist leer (Game Over Szenario?)
+        return f"The {lost_name} left, and no one remained. The party has collapsed."
+
+    # Strafe für die Parteikasse
+    state.economy['budget_int'] -= 3
+
+    return f"The {lost_name} faction split! Lost {members_lost} members. Remaining factions expanded to fill the void."
+
+# --- GOVERNMENT & PARLIAMENT ---
+
+def calculate_parliament_vote(state, bill):
+    """
+    Berechnet das Wahlergebnis im Parlament. 
+    Args:
+        bill (dict): Enthält 'ideology' (-10 links bis +10 rechts), 'modifier', 'author_party'.
+    """
+    votes = {"yes": 0, "no": 0, "abstain": 0}
+    details = [] # Wer hat wie gestimmt?
+
+    ideology_target = bill.vote_config["ideology_target"]
+    modifier = bill.vote_config.get("modifier", 0)
+    author_party = bill.vote_config.get("author_party")
+
+    coalition_stability = state.metrics["coalition_stability"]
+    
+    player_party = state.player_party
+    
+    for party_id, seats in state.parliament['seats'].items():
+        if seats == 0: continue
+        
+        party_data = gd.PARTIES.get(party_id, gd.PARTIES['others'])
+        
+        # 1. Haltung berechnen (Score)
+        # Startwert: Ideologische Distanz
+        # Wenn Bill Ideologie = 2 (Links-Mitte) und Partei = 8 (Rechts): Distanz) = Penalty.
+        dist = abs(party_data.get('ideology_index', 5) - bill["vote_config"]['ideology_target'])
+        
+        # Je größer die Distanz, desto niedriger der Score.
+        # Max Distanz ist ca 10. 
+        # Score geht von +50 (Perfektes Match) bis -50 (Gegenteil).
+        score = 50 - (dist * 10)
+        
+        # 2. Modifikatoren
+        # Eigene Partei stimmt meist zu.
+        if party_id == player_party:
+            score += 50
+        elif party_id == bill.get('author_party'): # Koalitionspartner?
+            score += 30
+        
+        # Relations-Check, abhängig von Beziehung zur Autorpartei.
+        rel = party_data.get('relations', {}).get(author_party, 50)
+        if rel < 30: score -= 20
+        if rel > 70: score += 10
+        
+        # Spezifischer Bill Modifier
+        score += bill.get('modifier', 0)
+        
+        # 3. Stimmen verteilen
+        # Sigmoid-artige Kurve oder simple Linearität
+        # Score 50+ -> 100% Ja
+        # Score 0   -> 50% Ja (Spaltung)
+        # Score -50 -> 0% Ja
+        
+        yes_share = max(0.0, min(1.0, (score + 50) / 100))
+        
+        # - +/- 5% Abweichung
+        import random
+        wobble = random.uniform(-0.05, 0.05)
+        yes_share = max(0.0, min(1.0, yes_share + wobble))
+        
+        yeas = int(seats * yes_share)
+        nays = seats - yeas
+        
+        # Enthaltungen? (Wenn Score nahe 0 ist)
+        if abs(score) < 15:
+            abstentions = int(nays * 0.5) # Hälfte der Nein-Sager enthält sich eher
+            nays -= abstentions
+        else:
+            abstentions = 0
+            
+        votes["yes"] += yeas
+        votes["no"] += nays
+        votes["abstain"] += abstentions
+        
+        # Log für den Spieler
+        vote_str = f"{yeas} Y / {nays} N"
+        if abstentions > 0: vote_str += f" / {abstentions} A"
+        
+        details.append({
+            "party": party_data['name'],
+            "color": party_data['color'],
+            "text": vote_str,
+            "score": score # Zum Debuggen des Scores
+        })
+        
+    passed = votes["yes"] > votes["no"]
+    return passed, votes, details
+
+def remove_from_coalition(state, party_id):
+    """Entfernt Partei und leert ihre Ministerien."""
+    if party_id in state.government["coalition"]:
+        state.government["coalition"].remove(party_id)
+        
+        for key, ministry in state.ministries.items():
+            if ministry['party'] == party_id:
+                vacate_ministry(state, key)
+        
+        state.metrics["coalition_stability"] -= 20
+        
+        # Falls Spielerpartei austritt (Spezialfall)
+        if party_id == state.player_party:
+            state.player_in_government = False
+            
+        return True
+    return False
+
+def get_coalition_seats(state):
+    """Summiert die Sitze aller Koalitionsparteien."""
+    seats = 0
+    return sum(
+        state.parliament["seats"].get(p, 0)
+        for p in state.government["coalition"]
+    )
+
+def is_majority(state):
+    total = sum(state.parliament["seats"].values())
+    if total == 0: return True # Provisorische Regierung ohne Parlamentssitze
+    return get_coalition_seats(state) > total // 2
+
+def get_minister_for_event(state, ministry_key):
+    """
+    Prüft, wer für eine Entscheidung zuständig ist.
     
     Args:
-        class_name: z.B. "workers_urban"
-        party_id: z.B. "psoe"
-        change_amount: z.B. 0.05 (für +5%) oder -0.02
+        state: session_state
+        ministry_key: z.B. 'interior', 'war', 'labor'
+        
+    Returns:
+        dict: Infos über den Entscheidungsträger
     """
-    # 1. Daten laden
-    demo_data = gd.STATE_START['election_demographics'] # Changes the Global Data!
-    # Besser: Es sollten ins session_state kopiert werden, wenn es veränderbar sein soll.
-    # Für jetzt nehmen wir an, es liegt im session_state (siehe unten).
+    ministry = state.ministries.get(ministry_key)
+    holder_party_id = ministry['party']
+    player_party_id = state.player_party
     
-    preferences = game_state.election_demographics[class_name]
+    is_player = (holder_party_id == player_party_id)
     
-    # 2. Den neuen Wert setzen
-    old_value = preferences.get(party_id, 0.0)
-    new_value = max(0.0, min(1.0, old_value + change_amount))
+    minister_name = ministry['holder']
+    party_name = gd.PARTIES[holder_party_id]['name']
     
-    # Die Differenz, die wir ausgleichen müssen
-    actual_change = new_value - old_value
-    
-    if actual_change == 0:
-        return
+    return {
+        "is_player": is_player,
+        "holder_name": minister_name,
+        "holder_party": party_name,
+        "party_id": holder_party_id
+    }    
 
-    # 3. Den neuen Wert speichern
-    preferences[party_id] = new_value
+def vacate_ministry(state, ministry_key):
+    """Setzt ein Ministerium zurück auf den Spieler (Interim)."""
+    if ministry_key in state.ministries:
+        state.ministries[ministry_key]['holder'] = "Vacant (Interim)"
+        state.ministries[ministry_key]['party'] = state.player_party
+        return True
+    return False
+
+def transfer_ministry_to_partner(state, target_party_id):
+    """
+    Nimmt dem Spieler ein Ministerium weg und gibt es der Zielpartei.
+    Priorisiert 'unwichtigere' Ministerien zuerst, aber wenn nötig auch wichtige.
+    """
+    player_party = state.player_party
     
-    # 4. Normalisierung (Ausgleich)
-    # 'actual_change' wird den ANDEREN Parteien abzgezogen/draufgeschlagen.
+    # Welche Ministerien hält der Spieler aktuell?
+    my_ministries = []
+    for key, m in state.ministries.items():
+        # Der Präsidenten-Posten (Head of Govt) ist meist tabu, außer man tritt zurück.
+        # Wir nehmen an, den behält man.
+        if m['party'] == player_party and key != "president":
+            my_ministries.append(key)
     
-    # Summe der anderen Parteien berechnen
-    other_parties = [p for p in preferences if p != party_id]
-    total_others = sum(preferences[p] for p in other_parties)
+    if not my_ministries:
+        return None # Spieler hat nichts mehr zu geben!
     
-    if total_others > 0:
-        for p in other_parties:
-            # Anteil berechnen: Wer viel hat, gibt viel ab.
-            share = preferences[p] / total_others
-            # Den Ausgleich anwenden (Gegenteil von actual_change)
-            reduction = actual_change * share
+    # Wir nehmen einfach das erste verfügbare (oder zufällig)
+    # Besser: Wir könnten eine Prioritätenliste haben, aber random ist ok für den Start.
+    ministry_key = random.choice(my_ministries)
+    
+    # Transfer
+    state.ministries[ministry_key]['party'] = target_party_id
+    state.ministries[ministry_key]['holder'] = f"Nominee of {gd.PARTIES[target_party_id]['name']}"
+    
+    return state.ministries[ministry_key]['name']
+
+# --- MONTHLY TICK ---
+
+def process_monthly_tick(state):
+    state.date['month'] += 1
+    if state.date['month'] > 12:
+        state.date['month'] = 1
+        state.date['year'] += 1
+        
+    # 2. Finanzen
+    revenue = state.economy['tax_revenue_int']
+    expenses = 4 
+    state.economy['budget_int'] += (revenue - expenses)
+
+    historical_id = None
+    year = state.date['year']
+    month = state.date['month']
+    
+    if year == 1931:
+        if month == 4:
+            historical_id = "1931_macia_declaration" 
+        elif month == 5:
+            historical_id = "1931_cardinal_segura"
+        elif month == 6:
+            historical_id = "1931_june_elections"
             
-            preferences[p] -= reduction
-            # Sicherstellen, dass nichts negativ wird
-            preferences[p] = max(0.0, preferences[p])
-            
-    # 5. Letzter Safety Check (Rundungsfehler)
-    # Alles summieren und auf 1.0 zwingen
-    total_sum = sum(preferences.values())
-    if total_sum != 0:
-        for p in preferences:
-            preferences[p] /= total_sum
+    if historical_id:
+        return "Historical Event Imminent.", None, historical_id
+    
+    sentiment_logs = update_voter_sentiment(state)
+    
+    # 3. Das Land (Optional: Ernten etc. lassen wir erstmal weg)
+
+    triggered_crisis = None
+    
+    # 2. MINORITY GOVERNMENT
+    total_seats = sum(state.parliament['seats'].values())
+    if total_seats > 0:
+        gov_seats = get_coalition_seats(state)
+        if gov_seats <= (total_seats // 2):
+            if not state.government.get('is_minority', False):
+                 triggered_crisis = {
+                    "type": "minority_government",
+                    "msg": "Warning: Minority Government."
+                }
+                 return "Month processed.", triggered_crisis
+
+    # 3. EVENT CHECKER SYSTEM
+    possible_events = [
+        FactionSchismEvent(state),
+        BurningConventsEvent(state),
+        CoalitionCrisisEvent(state),
+    ]
+    
+    for event in possible_events:
+        if event.should_trigger():
+            data = event.get_data()
+            triggered_crisis = {
+                "type": "event_trigger",
+                "event_data": data
+            }
+            break
+
+    return "Month processed.", triggered_crisis, None

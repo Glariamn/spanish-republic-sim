@@ -113,6 +113,7 @@ def get_event_macia_declaration(state):
                         "coalition_stability": 10,
                         "catalans": 20,
                         "army_officer_loyalty": -10,
+                        "industrial_output": 2, 
                         "demographic_shift": {
                             "group": "bourgeoisie",
                             "changes": { gd.PARTY_ERC: 0.10, gd.PARTY_AR: 0.03 }
@@ -120,6 +121,11 @@ def get_event_macia_declaration(state):
                          "demographic_shift_2": {
                             "group": "workers_urban",
                             "changes": { gd.PARTY_ERC: 0.05 }
+                        },
+                        "modify_relation": {
+                            "source": gd.PARTY_ERC, 
+                            "target": gd.PARTY_AR, 
+                            "amount": 20 
                         }
                     }
                 },
@@ -139,7 +145,7 @@ def get_event_macia_declaration(state):
                         "modify_faction": {"tag": "left", "amount": 10},
                         "demographic_shift": {
                             "group": "bourgeoisie",
-                            "changes": { gd.PARTY_LLIGA: 0.10, gd.PARTY_ERC: -0.10 }
+                            "changes": { gd.PARTY_LLIGA: 0.10, gd.PARTY_ERC: -0.05 }
                         }
                     }
                 }
@@ -160,7 +166,7 @@ def get_event_cardinal_segura(state):
         "choices": [
             {
                 "text": "Expel Cardinal Segura from Spain.",
-                "tooltip": "Enrage the Church, satisfy the Left.",
+                "tooltip": "Enrages the Church, confirms the fears of the wealthy and traditionalists.",
                 "requires_party": [gd.PARTY_PSOE, gd.PARTY_AR, gd.PARTY_PRRS, gd.PARTY_PRR],
                 "success": {
                     "msg": "Segura is exiled. The Vatican is furious.",
@@ -171,6 +177,7 @@ def get_event_cardinal_segura(state):
                             "group": "workers_urban",
                             "changes": { gd.PARTY_PRRS: 0.05, gd.PARTY_PSOE: 0.02 }
                         },
+                        "tax_revenue_int": -1,
                         "demographic_shift_2": { # Workaround key
                             "group": "bourgeoisie",
                             "changes": {

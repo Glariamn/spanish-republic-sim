@@ -17,6 +17,7 @@ PARTY_ERC  = "esquerra"      # Katalanische Linke
 PARTY_LLIGA= "lliga"         # Katalanische Rechte
 PARTY_PNV  = "pnv"           # Baskische Nationalisten
 PARTY_MON  = "monarchists"   # Renovación Española (Alfonsinos/Carlisten)
+PARTY_PA   = "agrarian"      # Partido Agrario Español (Generisch, für Koalitionen)
 
 # --- 2. THE MINISTRIES (Power Centers) ---
 # Historical Cabinet of the Provisional Government (April 1931)
@@ -152,8 +153,8 @@ PARTIES = {
     PARTY_PRR: { 
         "name": "Radicals (PRR)",
         "full_name": "Partido Republicano Radical",
-        "color": "#F7A800",      # Orange
-        "ideology_index": 5,     # Exakte Mitte
+        "color": "#571D51",      # Dark Purple
+        "ideology_index": 5,     # Centre-Right
         "funds_int": 6,
         "members": 10000,
         "factions": {"opportunists": 90, "ideologues": 10},
@@ -223,6 +224,17 @@ PARTIES = {
         "relations": {PARTY_DLR: 60}
     },
 
+    PARTY_PA: {
+        "name": "PA",
+        "full_name": "Partido Agrario Español",
+        "color": "#485120",      # Grün-Braun
+        "ideology_index": 6.5,     # Rechts-Konservativ
+        "funds_int": 3,         
+        "members": 50000,        
+        "factions": {"conservatives": 100},
+        "relations": {"church": 80, "army": 80, PARTY_PSOE: 0}
+    },
+
     PARTY_CEDA: {
         "name": "CEDA",
         "full_name": "Confederación Española de Derechas Autónomas",
@@ -238,7 +250,7 @@ PARTIES = {
         "name": "Monarchists",
         "full_name": "Renovación Española / Comunión Tradicionalista",
         "color": "#4B0082",      # Indigo/Royal Purple
-        "ideology_index": 9,     # Reationär
+        "ideology_index": 9,     # Reaktionär
         "funds_int": 20,         
         "members": 5000,
         "factions": {"alfonsinos": 50, "carlistas": 50},
@@ -286,6 +298,7 @@ STATE_START = {
         
         # NEU: Makroökonomie
         "global_economy_state": "Great Depression", # Text-Status
+        "arable_land": 20.5,
         "industrial_output": 40,    # 0-100 (Katalonien/Baskenland sind das Herz)
         "trade_balance": -5         # Negativ = Importüberschuss
     },
@@ -319,15 +332,15 @@ STATE_START = {
     # Summe pro Gruppe muss 1.0 ergeben!
     "election_demographics": {
         "aristocracy": {
-            PARTY_MON: 0.650, 
-            PARTY_DLR: 0.250, 
-            PARTY_CEDA: 0.080, # Existiert formal noch nicht, aber als Strömung
-            PARTY_PRR: 0.020
+            PARTY_MON: 0.400, 
+            PARTY_DLR: 0.350, 
+            PARTY_CEDA: 0.080, # Acción Nacional
+            PARTY_PRR: 0.170
         },
         "clergy": {
-            PARTY_MON: 0.400,
-            PARTY_CEDA: 0.400,
-            PARTY_DLR: 0.150,
+            PARTY_MON: 0.300,
+            PARTY_CEDA: 0.300,
+            PARTY_DLR: 0.350,
             PARTY_PNV: 0.050   # Baskischer Klerus
         },
         "bourgeoisie": { # Das Bürgertum ist gespalten
@@ -339,22 +352,23 @@ STATE_START = {
             PARTY_MON: 0.050
         },
         "workers_urban": {
-            PARTY_PSOE: 0.650,
-            PARTY_PRRS: 0.100, # Linksliberale
-            PARTY_PCE: 0.025,  # Noch sehr klein
+            PARTY_PSOE: 0.600,
+            PARTY_PRRS: 0.200, # Linksliberale
+            PARTY_PCE: 0.025,  
             PARTY_AR: 0.050,   # Azaña Fans
-            PARTY_ERC: 0.100,  # Katalanische Arbeiter
-            PARTY_PRR: 0.075   # Lerroux war früher populär bei Arbeitern ("Kaiser der Paralelo")
+            PARTY_ERC: 0.025,  # Katalanische Arbeiter
+            PARTY_PRR: 0.100   # Lerroux war früher populär bei Arbeitern ("Kaiser der Paralelo")
         },
         "workers_rural": {
             PARTY_PSOE: 0.450, # Landarbeiter im Süden
-            PARTY_CEDA: 0.300, # Kleinbauern im Norden (katholisch)
-            PARTY_MON: 0.150,  # Durch Caciques gezwungen
-            PARTY_CNT: 0.100   # Wählen oft gar nicht (Abstention), aber wir tracken es
+            PARTY_PRRS: 0.200, # Linke Republikaner versprachen Land
+            PARTY_CEDA: 0.100, # Kleinbauern im Norden (katholisch)
+            PARTY_MON: 0.050,  # Durch Caciques gezwungen
+            PARTY_CNT: 0.200   # Wählen oft nicht, aber wir tracken es
         },
         "soldiers": { # Wehrpflichtige
-            PARTY_PSOE: 0.400,
-            PARTY_PRR: 0.300,
+            PARTY_PSOE: 0.300,
+            PARTY_PRR: 0.400,
             PARTY_AR: 0.200,
             PARTY_PCE: 0.100
         }
@@ -447,5 +461,79 @@ STATE_START = {
         "falange": {"name": "Falange", "strength": 500, "hidden": True},
         "requetes": {"name": "Carlists", "strength": 8000, "hidden": True},
         "poum": {"name": "POUM", "strength": 0, "hidden": True}
+    }
+}
+
+# In src/content/game_data.py
+
+# ... (Bestehende Konstanten bleiben) ...
+
+# --- 5. COALITION DEFINITIONS (Historische Vorlagen) ---
+COALITION_DEFINITIONS = [
+    {
+        "id": "republican_socialist",
+        "name": "Conjunción Republicano-Socialista",
+        "partners": [PARTY_PSOE, PARTY_AR, PARTY_PRRS, PARTY_DLR, PARTY_ERC],
+        "ideology_range": (1, 6),
+        "historical_period": "1931-1933"
+    },
+    {
+        "id": "radical_ceda",
+        "name": "Center-Right Pact (Lerroux-Gil Robles)",
+        "partners": [PARTY_PRR, PARTY_CEDA, PARTY_DLR, PARTY_LLIGA, PARTY_PA], # PA = Agrarians (Generic)
+        "ideology_range": (5, 9),
+        "historical_period": "1933-1935"
+    },
+    {
+        "id": "popular_front",
+        "name": "Frente Popular",
+        "partners": [PARTY_PSOE, PARTY_PCE, PARTY_AR, PARTY_PRRS, PARTY_ERC, PARTY_CNT], # CNT support
+        "ideology_range": (0, 3),
+        "historical_period": "1936"
+    },
+    {
+        "id": "national_bloc",
+        "name": "Bloque Nacional",
+        "partners": [PARTY_CEDA, PARTY_MON, PARTY_FAL],
+        "ideology_range": (8, 10),
+        "historical_period": "1936"
+    }
+]
+
+# --- 6. POLITICIANS (Minister-Pool) ---
+# Wer kann welches Amt bekleiden?
+# Format: "PartyID": {"MinistryKey": ["Name1", "Name2"]}
+PARTY_MINISTERS = {
+    PARTY_PSOE: {
+        "labor": ["Largo Caballero", "Indalecio Prieto"],
+        "finance": ["Indalecio Prieto", "Juan Negrín"],
+        "justice": ["Fernando de los Ríos"],
+        "interior": ["Julian Besteiro"] # Hypothetisch
+    },
+    PARTY_AR: {
+        "war": ["Manuel Azaña"],
+        "president": ["Manuel Azaña"],
+        "state": ["Claudio Sánchez-Albornoz"],
+        "finance": ["Jaime Carner"]
+    },
+    PARTY_PRR: { # Radicals
+        "state": ["Alejandro Lerroux"],
+        "interior": ["Rafael Salazar Alonso", "Diego Martínez Barrio"],
+        "finance": ["Samper"],
+        "justice": ["Cantos"]
+    },
+    PARTY_DLR: {
+        "president": ["Niceto Alcalá-Zamora"],
+        "interior": ["Miguel Maura"],
+        "war": ["Maura (Interim)"]
+    },
+    PARTY_CEDA: {
+        "war": ["Gil-Robles"],
+        "agriculture": ["Giménez Fernández"],
+        "labor": ["Salmón"]
+    },
+    # Fallbacks für Generics
+    "others": {
+        "all": ["Technocrat", "Independent"]
     }
 }

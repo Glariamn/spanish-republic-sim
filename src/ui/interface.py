@@ -67,13 +67,24 @@ def render_parliament_chart():
 
     if not data: return
 
+    # 1. Sortiere den DataFrame nach Ideologie
+    for item in data:
+        if item['Party'] == "Others":
+            item['Order'] = 100 # Ganz rechts außen
+        elif item['Party'] == "Monarchists":
+             item['Order'] = 99 # Daneben
     df = pd.DataFrame(data).sort_values("Order")
+    
+    # 2. Erstelle sortierte Listen für Domain (Namen) und Range (Farben)
+    # Altair mappt sonst alphabetisch, was zum Versatz führt.
+    domain = df['Party'].tolist()
+    range_ = df['Color'].tolist()
 
     chart = alt.Chart(df).mark_bar().encode(
         x=alt.X('Seats', stack='normalize', axis=None),
         order=alt.Order('Order', sort='ascending'),
         color=alt.Color('Party', 
-                        scale=alt.Scale(domain=df['Party'].tolist(), range=df['Color'].tolist()), 
+                        scale=alt.Scale(domain=domain, range=range_), 
                         legend=alt.Legend(title=None, orient="bottom", columns=6)), 
         tooltip=['Party', 'Seats']
     ).properties(height=200)
@@ -107,6 +118,14 @@ def render_sidebar():
         col1, col2 = st.columns(2)
         col1.metric("Paro (Unempl.)", f"{eco['unemployment']}%")
         col2.metric("Alfabetismo", f"{st.session_state.demographics['literacy']}%")
+
+        st.divider()
+        
+        st.caption("Economy Metrics")
+        st.text(f"Global Economy: {eco['global_economy_state']}")
+        
+        st.metric("Arable Land", f"{eco['arable_land']} million ha")
+        st.metric("Industry", f"{eco['industrial_output']}%")
         
         # CENSUS
         st.divider()

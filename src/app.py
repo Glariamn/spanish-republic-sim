@@ -4,6 +4,7 @@ import engine.mechanics as mech
 import content.events.historical.events_1931 as ev31 
 import ui.interface as ui       
 import engine.deck_engine as deck_sys
+import content.election_events as el_ev
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
@@ -29,6 +30,7 @@ def init_game_state(player_party_id):
     st.session_state.government = copy.deepcopy(gd.STATE_START['government'])
     
     # Factions (from Party Data)
+    st.session_state.parties = copy.deepcopy(gd.PARTIES)
     st.session_state.my_factions = copy.deepcopy(gd.PARTIES[player_party_id]['factions'])
     
     # Secondary Stats
@@ -45,6 +47,9 @@ def init_game_state(player_party_id):
     st.session_state.current_event_id = "1931_election_night"
     st.session_state.last_outcome_text = None 
     st.session_state.dynamic_event_data = None
+
+    st.session_state.negotiation_active = False
+    st.session_state.draft_data = None
 
     # Card System
     st.session_state.hand = []
@@ -77,6 +82,18 @@ def apply_effects(effects_dict):
         elif k == "trigger_election":
             st.session_state.parliament['seats'] = mech.calculate_election_results(st.session_state)
             msg_log += " | Seats Reallocated."
+        elif k == "modify_relation":
+            # Erwartet: {"source": "psoe", "target": "accion_rep", "amount": -15}
+            src = v.get("source")
+            trg = v.get("target")
+            amt = v.get("amount")
+            res = mech.modify_party_relation(st.session_state, src, trg, amt)
+            if res: msg_log += f" | {res}"
+        elif k == "start_negotiation":
+            partners = st.session_state.government['coalition']
+            st.session_state.draft_data = mech.initialize_ministry_draft(st.session_state, partners)
+            st.session_state.negotiation_active = True
+            st.session_state.current_event_id = None # Election > Negotiation Scene
         
         # B. Simple Stats
         elif k in st.session_state.metrics: st.session_state.metrics[k] += v
@@ -135,6 +152,8 @@ else:
         elif curr == "1931_macia_declaration": ev_data = ev31.get_event_macia_declaration(st.session_state)
         elif curr == "1931_cardinal_segura": ev_data = ev31.get_event_cardinal_segura(st.session_state)
         elif curr == "1931_june_elections": ev_data = ev31.get_event_june_elections(st.session_state)
+        elif curr == "1931_coalition_formation": ev_data = el_ev.get_event_general_election(st.session_state)
+        elif curr == "1931_ministry_distribution": ev_data = ev31.get_event_ministry_distribution(st.session_state)
         elif curr == "dynamic_event_handler": ev_data = st.session_state.dynamic_event_data
         elif curr == "end_demo": st.warning("End of Prototype."); st.stop()
         
@@ -168,12 +187,124 @@ else:
                         if curr == "1931_election_night": pass # Wird im Feedback Screen gesetzt (s.o.)
                         elif curr == "1931_macia_declaration": st.session_state.current_event_id = None # Desk
                         elif curr == "1931_cardinal_segura": st.session_state.current_event_id = "1931_june_elections"
-                        elif curr == "1931_june_elections": st.session_state.current_event_id = "end_demo"
-                        elif curr == "dynamic_event_handler": st.session_state.current_event_id = None # Desk
+                        elif curr == "1931_june_elections": 
+                            st.session_state.current_event_id = "1931_coalition_formation"
+                        elif curr == "1931_coalition_formation": 
+                            # Falls die Koalition direkt in die Verhandlung führt:
+                            if st.session_state.get('negotiation_active'):
+                                st.session_state.current_event_id = None 
+                            else:
+                                st.session_state.current_event_id = "1931_ministry_distribution"
+                        elif curr == "1931_ministry_distribution": 
+                            st.session_state.current_event_id = None # Zurück zum Desk
+                        elif curr == "dynamic_event_handler": st.session_state.current_event_id = None
                         
                         st.rerun()
         else:
             st.error(f"Event ID not found: {curr}")
+
+    # 2.b MINISTRY NEGOTIATION MODE (Der Draft)
+    elif st.session_state.get('negotiation_active'):
+        st.markdown("### 🤝 Cabinet Formation")
+        
+        draft = st.session_state.draft_data
+        current_party = draft['order'][draft['current_index']]
+        is_player_turn = (current_party == st.session_state.player_party)
+        
+        # --- HEADER: Wer ist dran? ---
+        cols = st.columns(len(draft['order']))
+        for i, p_id in enumerate(draft['order']):
+            p_name = gd.PARTIES[p_id]['name']
+            if i == draft['current_index']:
+                cols[i].markdown(f"**👉 {p_name}**") # Highlight
+            else:
+                cols[i].markdown(f"{p_name}")
+
+        st.divider()
+        
+        # --- SPIELFELD: Verfügbare Ministerien ---
+        st.markdown("#### Available Portfolios")
+        
+        # Grid Layout für Ministerien
+        m_cols = st.columns(3)
+        
+        if is_player_turn:
+            st.info("It is your turn to claim a ministry.")
+            
+            # Button für jedes verfügbare Ministerium
+            for idx, m_key in enumerate(draft['available']):
+                with m_cols[idx % 3]:
+                    m_name = st.session_state.ministries[m_key]['name']
+                    if st.button(f"Claim {m_name}", key=f"claim_{m_key}"):
+                        # LOGIC: Spieler wählt
+                        # Namen auswählen (Erster aus der Liste oder Generic)
+                        candidates = gd.PARTY_MINISTERS.get(st.session_state.player_party, {}).get(m_key, ["Party Appointee"])
+                        
+                        draft['assignments'][m_key] = {
+                            'party': st.session_state.player_party,
+                            'holder': candidates[0] # Default zum ersten
+                        }
+                        draft['available'].remove(m_key)
+                        
+                        # Nächster Spieler
+                        draft['current_index'] = (draft['current_index'] + 1) % len(draft['order'])
+                        
+                        # Check End Condition (Alle verteilt ODER Runde vorbei?)
+                        # Wir machen es einfach: Bis alle weg sind.
+                        if not draft['available']:
+                            draft['finished'] = True
+                            
+                        st.rerun()
+            
+            if st.button("Pass (Take no more ministries)"):
+                # Spieler überspringt seinen Zug permanent? Oder nur diese Runde?
+                # Wir entfernen den Spieler aus der Draft Order für den Rest.
+                st.warning("You stepped back from further negotiations.")
+                draft['order'].remove(st.session_state.player_party)
+                # Index Korrektur, falls wir nicht am Ende waren
+                if draft['current_index'] >= len(draft['order']):
+                    draft['current_index'] = 0
+                st.rerun()
+
+        else:
+            # KI IST DRAN
+            with st.spinner(f"{gd.PARTIES[current_party]['name']} is deliberating..."):
+                import time
+                # time.sleep(1) # Künstliche Verzögerung für Effekt (optional)
+                
+                # KI Logik aufrufen
+                pick, holder = mech.ai_pick_ministry(st.session_state, current_party, draft['available'])
+                
+                if pick:
+                    draft['assignments'][pick] = {'party': current_party, 'holder': holder}
+                    draft['available'].remove(pick)
+                    last_action = f"{gd.PARTIES[current_party]['name']} took {st.session_state.ministries[pick]['name']}."
+                else:
+                    last_action = f"{gd.PARTIES[current_party]['name']} passed."
+                
+                # Nächster
+                draft['current_index'] = (draft['current_index'] + 1) % len(draft['order'])
+                if not draft['available']:
+                    draft['finished'] = True
+                
+                st.toast(last_action)
+                st.rerun()
+
+        # --- ABSCHLUSS ---
+        if draft['finished']:
+            st.success("The Cabinet is formed!")
+            st.json(draft['assignments']) # Debug View
+            
+            if st.button("Confirm Government"):
+                # 1. State updaten
+                for m_key, data in draft['assignments'].items():
+                    st.session_state.ministries[m_key]['party'] = data['party']
+                    st.session_state.ministries[m_key]['holder'] = data['holder']
+                
+                # 2. Modus beenden
+                st.session_state.negotiation_active = False
+                st.session_state.current_event_id = None # Zurück zum Desk
+                st.rerun()
 
     # 3. DESK MODE (Card Game)
     else:

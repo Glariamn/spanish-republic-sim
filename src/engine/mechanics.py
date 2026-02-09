@@ -305,7 +305,7 @@ def calculate_parliament_vote(state, bill):
     for party_id, seats in state.parliament['seats'].items():
         if seats == 0: continue
         
-        party_data = gd.PARTIES.get(party_id, gd.PARTIES['others'])
+        party_data = state.parties.get(party_id, gd.PARTIES['others'])
         
         # 1. Haltung berechnen (Score)
         # Startwert: Ideologische Distanz
@@ -325,9 +325,7 @@ def calculate_parliament_vote(state, bill):
             score += 30
         
         # Relations-Check, abhängig von Beziehung zur Autorpartei.
-        rel = party_data.get('relations', {}).get(author_party, 50)
-        if rel < 30: score -= 20
-        if rel > 70: score += 10
+        rel = party_data.get('relations', {}).get(bill.get('author_party'), 50)
         
         # Spezifischer Bill Modifier
         score += bill.get('modifier', 0)
@@ -466,6 +464,132 @@ def transfer_ministry_to_partner(state, target_party_id):
     state.ministries[ministry_key]['holder'] = f"Nominee of {gd.PARTIES[target_party_id]['name']}"
     
     return state.ministries[ministry_key]['name']
+
+def modify_party_relation(state, source_party, target_party, amount):
+    if 'parties' not in state: return
+    
+    s_party = state.parties.get(source_party)
+    
+    if s_party:
+        current = s_party['relations'].get(target_party, 50)
+        new_val = max(0, min(100, current + amount))
+        s_party['relations'][target_party] = new_val
+        
+        p1 = s_party['name']
+        p2 = state.parties.get(target_party, {'name': target_party})['name']
+        sign = "+" if amount > 0 else ""
+        return f"Relation: {p1} -> {p2} ({sign}{amount})"
+        
+    return None
+
+def get_coalition_options(state):
+    """
+    Prüft, welche historischen Konstellationen eine Mehrheit haben.
+    Gibt zurück:
+    - options: Liste möglicher Koalitionen
+    - status: 'formateur' (Du führst), 'partner' (Du wirst eingeladen), 'opposition' (Keine Chance)
+    """
+    seats = state.parliament['seats']
+    total_seats = 470
+    majority_thresh = 236
+    player = state.player_party
+    
+    possible = []
+    
+    for template in gd.COALITION_DEFINITIONS:
+        # 1. Sitze zählen
+        current_seats = sum(seats.get(p, 0) for p in template['partners'])
+        is_majority = current_seats >= majority_thresh
+        
+        # 2. Ist Spieler dabei?
+        if player in template['partners']:
+            # 3. Wer führt? (Größte Partei in der Koalition)
+            # Sortiere Partner nach Sitzen
+            sorted_partners = sorted(template['partners'], key=lambda x: seats.get(x, 0), reverse=True)
+            leader = sorted_partners[0]
+            
+            is_leader = (leader == player)
+            
+            possible.append({
+                "type": template,
+                "seats": current_seats,
+                "majority": is_majority,
+                "is_leader": is_leader,
+                "leader_id": leader
+            })
+            
+    return possible
+
+def initialize_ministry_draft(state, coalition_partners):
+    """
+    Bereitet den 'Draft' vor.
+    Reihenfolge: Beliebtheit (Average Relations zu allen Partnern) + Sitzanzahl (Tiebreaker).
+    """
+    # 1. Draft Order berechnen
+    scores = []
+    for p in coalition_partners:
+        # Score = Average Relation zu anderen Partnern + (Sitze / 10)
+        rel_sum = 0
+        others_count = 0
+        p_data = gd.PARTIES.get(p, gd.PARTIES["others"])
+        
+        for other in coalition_partners:
+            if other == p: continue
+            rel = p_data.get('relations', {}).get(other, 50)
+            rel_sum += rel
+            others_count += 1
+            
+        avg_rel = rel_sum / max(1, others_count)
+        seat_bonus = state.parliament['seats'].get(p, 0) / 5
+        
+        total_score = avg_rel + seat_bonus
+        scores.append({'party': p, 'score': total_score})
+        
+    # Sortieren: Höchster Score zuerst
+    sorted_parties = sorted(scores, key=lambda x: x['score'], reverse=True)
+    draft_order = [x['party'] for x in sorted_parties]
+    
+    # State initialisieren
+    return {
+        "order": draft_order,
+        "current_index": 0, # Wer ist dran? (Index in order)
+        "round": 1,
+        "available": list(state.ministries.keys()), # ['war', 'interior', ...]
+        "assignments": {}, # 'war': {'party': 'psoe', 'holder': 'Caballero'}
+        "finished": False
+    }
+
+def ai_pick_ministry(state, party_id, available_keys):
+    """
+    KI entscheidet, welches Ministerium sie will.
+    """
+    # 1. Präferenzen laden (aus PARTY_MINISTERS Keys oder Hardcoded Logic)
+    preferences = gd.PARTY_MINISTERS.get(party_id, {}).keys()
+    
+    # 2. Prüfen was noch da ist
+    wanted = [k for k in preferences if k in available_keys]
+    
+    picked_key = None
+    if wanted:
+        picked_key = wanted[0] # Nimm das Liebste zuerst
+    else:
+        # Nimm irgendeins (Priorität: Interior > War > Finance > Rest)
+        priority = ['interior', 'war', 'finance', 'state', 'labor', 'agriculture', 'justice']
+        for p in priority:
+            if p in available_keys:
+                picked_key = p
+                break
+                
+    # Fallback
+    if not picked_key and available_keys:
+        picked_key = available_keys[0]
+        
+    # Name wählen
+    candidates = gd.PARTY_MINISTERS.get(party_id, {}).get(picked_key, ["Party Technocrat"])
+    import random
+    holder_name = random.choice(candidates)
+    
+    return picked_key, holder_name
 
 # --- MONTHLY TICK ---
 

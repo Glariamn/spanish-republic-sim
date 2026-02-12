@@ -295,6 +295,7 @@ STATE_START = {
         "tax_revenue_int": 5,
         "unemployment": 12.5,
         "exchange_rate": 45.0,
+        "monthly_expenses_int": 4,
         
         # NEU: Makroökonomie
         "global_economy_state": "Great Depression", # Text-Status
@@ -375,9 +376,14 @@ STATE_START = {
     },
 
     "government": {
-        "coalition": [PARTY_PSOE, PARTY_AR, PARTY_DLR, PARTY_PRR], # Die provisorische Regierung
+        "coalition": [PARTY_PSOE, PARTY_AR, PARTY_DLR, PARTY_PRR],
         "is_minority": False,
-        "next_election": {"year": 1931, "month": 6}
+        "next_election_date": {"year": 1931, "month": 6}, 
+        "term_length": 48
+    },
+
+    "history": {
+        "last_election_seats": {},
     },
 
     # Das Parlament (Las Cortes Generales)

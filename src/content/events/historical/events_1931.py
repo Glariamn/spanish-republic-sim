@@ -235,3 +235,55 @@ def get_event_june_elections(state):
             }
         ]
     }
+
+# ... (Andere Events) ...
+
+def get_event_lerroux_exit(state):
+    return {
+        "id": "1931_lerroux_exit",
+        "title": "The Radical Rupture",
+        "date_str": "Oktober 1931",
+        "text": """
+        **The Coalition is fracturing.**
+        
+        Alejandro Lerroux and his Radical Republican Party (PRR) can no longer support the government. 
+        They cite the "excessive influence of the Socialists" and the aggressive anti-clerical articles in the new Constitution (Article 26).
+        
+        Lerroux demands that the Socialists (PSOE) leave the government, or he will.
+        """,
+        "choices": [
+            {
+                "text": "Let Lerroux go. Keep the Socialists.",
+                "tooltip": "Historical Choice. Maintains the Left-Wing coalition but loses the Center.",
+                "success": {
+                    "msg": "Lerroux resigns. The Radicals move to the opposition, joining the right-wing obstruction.",
+                    "effects": {
+                        "remove_party": gd.PARTY_PRR,
+                        "coalition_stability": -15, 
+                        "modify_faction": {"tag": "left", "amount": -10}, 
+                        "demographic_shift": {
+                            "group": "bourgeoisie",
+                            "changes": {gd.PARTY_PRR: 0.05, state.player_party: -0.05}
+                        }
+                    }
+                }
+            },
+            {
+                "text": "Dump the Socialists to keep Lerroux.",
+                "tooltip": "A massive betrayal. Will cause a General Strike.",
+                "requires_party": [gd.PARTY_AR, gd.PARTY_DLR], # Nur Bürgerliche können das
+                "success": {
+                    "msg": "You break ties with the PSOE. Lerroux stays, but the streets are on fire.",
+                    "effects": {
+                        "remove_party": gd.PARTY_PSOE,
+                        "coalition_stability": 10, # Neue Zentrums-Allianz
+                        "public_order": -30, # UGT Generalstreik
+                        "demographic_shift": {
+                            "group": "workers_urban",
+                            "changes": {gd.PARTY_PSOE: 0.10, state.player_party: -0.10}
+                        }
+                    }
+                }
+            }
+        ]
+    }

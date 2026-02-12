@@ -56,6 +56,7 @@ def calculate_election_results(game_state):
     """
     Simuliert die Wahl basierend auf den aktuellen Demographien.
     """
+    game_state.history['last_election_seats'] = game_state.parliament['seats'].copy()
     # 1. Bevölkerungsgewichtung
     CLASS_WEIGHTS = {
         "aristocracy": 1,
@@ -111,6 +112,16 @@ def calculate_election_results(game_state):
         if "others" not in new_seats:
             new_seats["others"] = 0
         new_seats["others"] += remainder
+
+    # 3. Nächstes Wahldatum setzen (4 Jahre später)
+    term = game_state.government.get('term_length', 48)
+    next_y = game_state.date['year'] + (term // 12)
+    next_m = game_state.date['month'] + (term % 12)
+    if next_m > 12:
+        next_y += 1
+        next_m -= 12
+
+    game_state.government['next_election_date'] = {"year": next_y, "month": next_m}
         
     return new_seats
 
@@ -598,23 +609,27 @@ def process_monthly_tick(state):
     if state.date['month'] > 12:
         state.date['month'] = 1
         state.date['year'] += 1
-        
-    # 2. Finanzen
-    revenue = state.economy['tax_revenue_int']
-    expenses = 4 
-    state.economy['budget_int'] += (revenue - expenses)
+    expenses = state.economy['monthly_expenses_int']
+    state.economy['budget_int'] += (state.economy['tax_revenue_int'] - expenses)
 
+    entropy_msg = apply_entropy(state)
+
+    next_el = state.government['next_election_date']
+    if state.date['year'] == next_el['year'] and state.date['month'] == next_el['month']:
+        return "Term limit reached. Election time!", None, "general_elections"
+
+    # 4. Historical Event Check (wie gehabt)
     historical_id = None
-    year = state.date['year']
-    month = state.date['month']
+    y, m = state.date['year'], state.date['month']
     
-    if year == 1931:
-        if month == 4:
-            historical_id = "1931_macia_declaration" 
-        elif month == 5:
-            historical_id = "1931_cardinal_segura"
-        elif month == 6:
-            historical_id = "1931_june_elections"
+    if y == 1931:
+        if m == 4: historical_id = "1931_macia_declaration"
+        elif m == 5: historical_id = "1931_cardinal_segura"
+        elif m == 6: historical_id = "1931_june_elections"
+        elif m == 10: historical_id = "1931_lerroux_exit"
+            
+    if historical_id:
+        return "Historical Event Imminent.", None, historical_id
             
     if historical_id:
         return "Historical Event Imminent.", None, historical_id
@@ -653,4 +668,31 @@ def process_monthly_tick(state):
             }
             break
 
-    return "Month processed.", triggered_crisis, None
+    msg = "Month processed."
+    if entropy_msg: msg += f" {entropy_msg}"
+    
+    return msg, triggered_crisis, None
+
+def apply_entropy(state):
+    """
+    Sorgt dafür, dass sich die Situation niemals statisch anfühlt.
+    Regieren nutzt sich ab.
+    """
+    import random
+    
+    # 1. Base dissent
+    if random.randint(1, 100) <= 30: # 30% Chance pro Monat
+        modify_faction_dissent(state, "all", 2)
+        
+    # 2. PO decay
+    current_order = state.metrics['public_order']
+    if current_order > 60:
+        state.metrics['public_order'] -= 1
+        
+    # 3. Wirtschaftliche Fluktuation (World Economy Impact)
+    if state.economy['global_economy_state'] == "Great Depression":
+        if random.randint(1, 100) <= 10: 
+            state.economy['unemployment'] += 0.5
+            return "📉 Global markets worsen. Unemployment rises."
+            
+    return None

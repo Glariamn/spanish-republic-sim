@@ -28,6 +28,7 @@ def init_game_state(player_party_id):
     st.session_state.election_demographics = copy.deepcopy(gd.STATE_START['election_demographics'])
     st.session_state.ministries = copy.deepcopy(gd.MINISTRIES)
     st.session_state.government = copy.deepcopy(gd.STATE_START['government'])
+    st.session_state.history = copy.deepcopy(gd.STATE_START['history'])
     
     # Factions (from Party Data)
     st.session_state.parties = copy.deepcopy(gd.PARTIES)
@@ -154,6 +155,7 @@ else:
         elif curr == "1931_june_elections": ev_data = ev31.get_event_june_elections(st.session_state)
         elif curr == "1931_coalition_formation": ev_data = el_ev.get_event_general_election(st.session_state)
         elif curr == "1931_ministry_distribution": ev_data = ev31.get_event_ministry_distribution(st.session_state)
+        elif curr == "1931_lerroux_exit": ev_data = ev31.get_event_lerroux_exit(st.session_state)
         elif curr == "dynamic_event_handler": ev_data = st.session_state.dynamic_event_data
         elif curr == "end_demo": st.warning("End of Prototype."); st.stop()
         
@@ -161,6 +163,9 @@ else:
             st.markdown(f"### 📜 {ev_data['title']}")
             st.markdown(ev_data['text'])
             st.divider()
+
+            if "election" in curr: 
+                ui.render_election_comparison()
             
             # June Elections Special: Chart zeigen
             if curr == "1931_june_elections": ui.render_parliament_chart()

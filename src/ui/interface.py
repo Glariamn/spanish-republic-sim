@@ -45,9 +45,11 @@ def format_money(amount_int):
 
 # --- RENDER FUNCTIONS ---
 
+# ... (Imports) ...
+
 def render_parliament_chart():
-    """Zeigt die Sitzverteilung."""
     seats = st.session_state.parliament['seats']
+    total_seats = 470
     
     if sum(seats.values()) == 0:
         st.info("Cortes Constituyentes: No elected parliament yet.")
@@ -58,45 +60,82 @@ def render_parliament_chart():
     for party_id, count in seats.items():
         if count > 0: 
             p_data = gd.PARTIES.get(party_id, gd.PARTIES["others"])
+            percent = (count / total_seats) * 100
             data.append({
                 "Party": p_data['name'],
                 "Seats": count,
+                "Percent": f"{percent:.1f}%", 
                 "Color": p_data['color'],
                 "Order": p_data.get('ideology_index', 5)
             })
 
     if not data: return
 
-    # 1. Sortiere den DataFrame nach Ideologie
+    # Sortierung 
     for item in data:
-        if item['Party'] == "Others":
-            item['Order'] = 100 # Ganz rechts außen
-        elif item['Party'] == "Monarchists":
-             item['Order'] = 99 # Daneben
+        if item['Party'] == "Others": item['Order'] = 100
+        elif item['Party'] == "Monarchists": item['Order'] = 99
     df = pd.DataFrame(data).sort_values("Order")
     
-    # 2. Erstelle sortierte Listen für Domain (Namen) und Range (Farben)
-    # Altair mappt sonst alphabetisch, was zum Versatz führt.
     domain = df['Party'].tolist()
     range_ = df['Color'].tolist()
 
     chart = alt.Chart(df).mark_bar().encode(
         x=alt.X('Seats', stack='normalize', axis=None),
         order=alt.Order('Order', sort='ascending'),
-        color=alt.Color('Party', 
-                        scale=alt.Scale(domain=domain, range=range_), 
-                        legend=alt.Legend(title=None, orient="bottom", columns=6)), 
-        tooltip=['Party', 'Seats']
-    ).properties(height=200)
+        color=alt.Color('Party', scale=alt.Scale(domain=domain, range=range_), legend=None),
+        tooltip=['Party', 'Seats', 'Percent']
+    ).properties(height=150)
     
-    st.markdown("**Cortes Generales (470 Escaños)**")
+    st.markdown("**Cortes Generales**")
     st.altair_chart(chart, use_container_width=True)
     
-    st.caption("Verteilung der Macht")
-    cols = st.columns(3)
-    sorted_by_size = sorted(data, key=lambda x: x['Seats'], reverse=True)[:3]
+    # Text-Summary
+    cols = st.columns(4)
+    sorted_by_size = sorted(data, key=lambda x: x['Seats'], reverse=True)[:4]
     for i, item in enumerate(sorted_by_size):
-        cols[i].metric(item['Party'], item['Seats'])
+        cols[i].metric(item['Party'], f"{item['Seats']} ({item['Percent']})")
+
+def render_election_comparison():
+    """Zeigt den Unterschied zur letzten Wahl."""
+    if 'history' not in st.session_state or 'last_election_seats' not in st.session_state.history:
+        return
+
+    old_seats = st.session_state.history['last_election_seats']
+    new_seats = st.session_state.parliament['seats']
+    
+    if not old_seats: return 
+
+    st.markdown("### 🗳️ Election Results Breakdown")
+    
+    # Tabelle
+    rows = []
+    for p_id, current in new_seats.items():
+        if current == 0 and old_seats.get(p_id, 0) == 0: continue
+        
+        old = old_seats.get(p_id, 0)
+        diff = current - old
+        p_name = gd.PARTIES.get(p_id, gd.PARTIES['others'])['name']
+        
+        rows.append({
+            "Party": p_name,
+            "Seats": current,
+            "Change": diff
+        })
+    
+    # Sortieren nach Gewinnen/Verlusten
+    rows.sort(key=lambda x: x['Seats'], reverse=True)
+    
+    # Anzeige als Metriken in Reihen
+    cols = st.columns(4)
+    for i, row in enumerate(rows):
+        with cols[i % 4]:
+            st.metric(
+                label=row['Party'], 
+                value=row['Seats'], 
+                delta=row['Change'] if row['Change'] != 0 else None
+            )
+    st.divider()
 
 def render_sidebar():
     """Die Seitenleiste."""

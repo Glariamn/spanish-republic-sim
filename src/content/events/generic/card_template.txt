@@ -1,0 +1,44 @@
+cards.append({
+            "id": "unique_id_name",       # Muss einzigartig sein
+            "type": "initiative",         # "initiative" (bleibt auf Hand) oder "reactive" (muss weg)
+            "deck": "state",              # "state" (links) oder "party" (rechts)
+            "category": "Economy",        # Überschrift auf der Karte
+            "title": "Titel der Karte",
+            "text": "Beschreibung des Problems.",
+            "base_weight": 10,            # Wie oft taucht sie auf? (10=selten, 50=oft)
+            
+            # OPTIONEN (Was kann man tun?)
+            "options": [
+                {
+                    "text": "Button Text",
+                    "success": {
+                        "msg": "Feedback Text nach Klick.",
+                        "effects": {
+                            "budget_int": -1,          # Kosten/Stats
+                            "workers_urban": 5,
+                            # Wähler beeinflussen:
+                            "demographic_shift": {
+                                "group": "workers_urban", 
+                                "changes": {gd.PARTY_PSOE: 0.05}
+                            }
+                        }
+                    }
+                }
+            ],
+            
+            # NUR BEI "reactive": Was passiert, wenn man sie ignoriert?
+            "timeout_effect": {
+                "msg": "Die Krise eskaliert!",
+                "effects": {"public_order": -5}
+            }
+        })
+		
+Schritt 3: Registrieren (WICHTIG!)
+Damit das Spiel die Karte findet, muss sie in src/engine/deck_engine.py importiert sein.
+Öffne deck_engine.py.
+Oben: import content.initiatives.DEIN_ORDNER.DEINE_DATEI as card_xyz
+In get_all_potential_cards:
+code
+Python
+if hasattr(card_xyz, 'get_initiatives'):
+    pool.extend(card_xyz.get_initiatives(state))

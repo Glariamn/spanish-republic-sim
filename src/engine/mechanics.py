@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from content.initiatives.politics.coalition_crisis import CoalitionCrisisEvent
 from content.initiatives.party.faction_schism import FactionSchismEvent
 from content.events.historical.burning_convents import BurningConventsEvent
+from content.events.system.confidence_vote import ConfidenceVoteEvent
 
 import random
 import content.game_data as gd
@@ -52,78 +53,113 @@ def calculate_outcome(base_chance, modifiers, game_state):
     
     return success, roll, final_chance, breakdown
 
-def calculate_election_results(game_state):
+def calculate_election_results(state):
     """
-    Simuliert die Wahl basierend auf den aktuellen Demographien.
+    Simuliert die Wahl mit WAHLBETEILIGUNG und MOBILISIERUNG.
     """
-    game_state.history['last_election_seats'] = game_state.parliament['seats'].copy()
-    # 1. Bevölkerungsgewichtung
+    # 1. Alte Ergebnisse sichern
+    state.history['last_election_seats'] = state.parliament['seats'].copy()
+    
+    # --- VOTER TURNOUT ---
+    # Basis: 70%
+    base_turnout = 0.70
+    
+    stability_mod = (50 - state.metrics['coalition_stability']) / 200 
+    order_mod = (50 - state.metrics['public_order']) / 200
+    
+    final_turnout = base_turnout + stability_mod + order_mod
+    final_turnout = max(0.5, min(0.95, final_turnout)) # Clamp 50-95%
+    
     CLASS_WEIGHTS = {
-        "aristocracy": 1,
-        "clergy": 2,
-        "bourgeoisie": 5,
-        "workers_urban": 10,
-        "workers_rural": 15,
-        "soldiers": 3,
-        "catalans": 4,  
-        "basques": 2
+        "aristocracy": 1, "clergy": 2, "bourgeoisie": 5,
+        "workers_urban": 10, "workers_rural": 15, "soldiers": 3
     }
     
-    demographics = game_state.election_demographics
     votes = {}
+    total_potential_votes = sum(CLASS_WEIGHTS.values())
 
-    # 2. Stimmen auszählen
     for group_name, weight in CLASS_WEIGHTS.items():
-        # Parteipräferenzen (z.B. {PSOE: 0.6, DLR: 0.4})
-        if group_name in demographics:
-            preferences = demographics[group_name]
+        if group_name in state.election_demographics:
+            preferences = state.election_demographics[group_name]
             
             for party_id, percentage in preferences.items():
-                # Gewicht der Gruppe * Prozentanteil
-                vote_share = weight * percentage
                 
-                # Zur Partei addieren
-                if party_id not in votes:
-                    votes[party_id] = 0
+                party_data = state.parties.get(party_id, gd.PARTIES['others'])
+                
+                mobilization_mod = party_data.get('institutionalization', 50) / 100.0 # z.B. 0.8 für PSOE
+                
+                # 2. Stimmen berechnen
+                # Basis-Stimmen * Mobilisierung * Wahlbeteiligung
+                vote_share = (weight * percentage) * mobilization_mod * final_turnout
+                
+                if party_id not in votes: votes[party_id] = 0
                 votes[party_id] += vote_share
 
-    # 3. Sitze verteilen (Proportional auf 470 Sitze)
+    # Sitze verteilen
     total_vote_points = sum(votes.values())
     total_parliament_seats = 470
-    
     new_seats = {}
-    
-    # Debug Info
-    print("--- ELECTION DEBUG ---")
-    
     current_seat_sum = 0
     
+    # Anarchisten (CNT) bekommen keine Sitze, auch wenn sie Stimmen haben
+    if gd.PARTY_CNT in votes:
+        del votes[gd.PARTY_CNT]
+
+    # D'Hondt-Verfahren (einfach proportional)
     for party_id, score in votes.items():
         if total_vote_points > 0:
             share = score / total_vote_points
             seats = int(share * total_parliament_seats)
             new_seats[party_id] = seats
             current_seat_sum += seats
-            print(f"{party_id}: {share:.2%} -> {seats} Seats")
     
-    # 4. Rest-Sitze (Rundungsdifferenzen) an die Sieger verteilen oder "Others"
     remainder = total_parliament_seats - current_seat_sum
     if remainder > 0:
-        if "others" not in new_seats:
-            new_seats["others"] = 0
-        new_seats["others"] += remainder
+        # Restmandate an die größten Parteien
+        sorted_parties = sorted(new_seats.items(), key=lambda x: x[1], reverse=True)
+        if sorted_parties:
+            winner = sorted_parties[0][0]
+            new_seats[winner] += remainder
+        else:
+            new_seats['others'] = new_seats.get('others', 0) + remainder
 
-    # 3. Nächstes Wahldatum setzen (4 Jahre später)
-    term = game_state.government.get('term_length', 48)
-    next_y = game_state.date['year'] + (term // 12)
-    next_m = game_state.date['month'] + (term % 12)
-    if next_m > 12:
-        next_y += 1
-        next_m -= 12
-
-    game_state.government['next_election_date'] = {"year": next_y, "month": next_m}
+    # Nächstes Wahldatum setzen
+    term = state.government.get('term_length', 48)
+    next_y = state.date['year'] + (term // 12)
+    state.government['next_election_date'] = {"year": next_y, "month": state.date['month']}
         
     return new_seats
+
+def call_new_election(state):
+    """
+    Führt eine Neuwahl durch:
+    1. Speichert altes Ergebnis (History).
+    2. Berechnet neue Sitze.
+    3. Setzt Regierungsstatus zurück.
+    4. Setzt nächstes Wahldatum.
+    """
+    new_seats = calculate_election_results(state)
+    state.parliament['seats'] = new_seats
+    
+    state.government['coalition'] = [] 
+    state.government['is_minority'] = False
+    
+    for m in state.ministries.values():
+        m['holder'] = f"Acting ({m['holder']})"
+
+    current_year = state.date['year']
+    current_month = state.date['month']
+    
+    term_length = state.government.get('term_length', 48)
+    
+    future_year = current_year + 4
+    
+    state.government['next_election_date'] = {
+        "year": future_year, 
+        "month": current_month
+    }
+        
+    return f"Election complete. Next election set for {current_month}/{future_year}."
 
 # --- VOTER SHIFTING ---
 
@@ -225,26 +261,27 @@ def modify_faction_dissent(state, target_tag, amount):
     affected_list = []
     
     for key, faction in state.my_factions.items():
-        should_modify = False
-        
-        # Tag Matching Logik
-        if target_tag == "all":
-            should_modify = True
-        elif target_tag == faction['tag']:
-            should_modify = True
-        elif target_tag.startswith("not_") and faction['tag'] != target_tag[4:]:
-            should_modify = True
+        if target_tag in faction.get('tags', []):
+            should_modify = False
             
-        if should_modify:
-            # Dissent ändern (0 bis 100)
-            old_val = faction['dissent']
-            new_val = max(0, min(100, old_val + amount))
-            faction['dissent'] = new_val
-            
-            diff = new_val - old_val
-            if diff != 0:
-                sign = "+" if diff > 0 else ""
-                affected_list.append(f"{faction['name']} ({sign}{diff} Dissent)")
+            # Tag Matching Logik
+            if target_tag == "all":
+                should_modify = True
+            elif target_tag == faction['tag']:
+                should_modify = True
+            elif target_tag.startswith("not_") and faction['tag'] != target_tag[4:]:
+                should_modify = True
+                
+            if should_modify:
+                # Dissent ändern (0 bis 100)
+                old_val = faction['dissent']
+                new_val = max(0, min(100, old_val + amount))
+                faction['dissent'] = new_val
+                
+                diff = new_val - old_val
+                if diff != 0:
+                    sign = "+" if diff > 0 else ""
+                    affected_list.append(f"{faction['name']} ({sign}{diff} Dissent)")
             
     return affected_list
 
@@ -582,9 +619,9 @@ def ai_pick_ministry(state, party_id, available_keys):
     
     picked_key = None
     if wanted:
-        picked_key = wanted[0] # Nimm das Liebste zuerst
+        picked_key = wanted[0] # Präferenzen
     else:
-        # Nimm irgendeins (Priorität: Interior > War > Finance > Rest)
+        # Ansosnten whatever (Priorität: Interior > War > Finance > Rest)
         priority = ['interior', 'war', 'finance', 'state', 'labor', 'agriculture', 'justice']
         for p in priority:
             if p in available_keys:
@@ -614,11 +651,7 @@ def process_monthly_tick(state):
 
     entropy_msg = apply_entropy(state)
 
-    next_el = state.government['next_election_date']
-    if state.date['year'] == next_el['year'] and state.date['month'] == next_el['month']:
-        return "Term limit reached. Election time!", None, "general_elections"
-
-    # 4. Historical Event Check (wie gehabt)
+    # 4. Historical Event Check
     historical_id = None
     y, m = state.date['year'], state.date['month']
     
@@ -630,15 +663,16 @@ def process_monthly_tick(state):
             
     if historical_id:
         return "Historical Event Imminent.", None, historical_id
-            
-    if historical_id:
-        return "Historical Event Imminent.", None, historical_id
     
     sentiment_logs = update_voter_sentiment(state)
     
     # 3. Das Land (Optional: Ernten etc. lassen wir erstmal weg)
 
     triggered_crisis = None
+
+    next_el = state.government['next_election_date']
+    if state.date['year'] == next_el['year'] and state.date['month'] == next_el['month'] and not y == 1931:
+        return "Term limit reached.", None, "auto_election_trigger"
     
     # 2. MINORITY GOVERNMENT
     total_seats = sum(state.parliament['seats'].values())
@@ -654,6 +688,7 @@ def process_monthly_tick(state):
 
     # 3. EVENT CHECKER SYSTEM
     possible_events = [
+        ConfidenceVoteEvent(state),
         FactionSchismEvent(state),
         BurningConventsEvent(state),
         CoalitionCrisisEvent(state),
@@ -696,3 +731,29 @@ def apply_entropy(state):
             return "📉 Global markets worsen. Unemployment rises."
             
     return None
+
+def calculate_confidence_vote(state):
+    """
+    Berechnet ein Misstrauensvotum.
+    Regierungsparteien stimmen dafür, Opposition dagegen.
+    """
+    votes = {"yes": 0, "no": 0, "abstain": 0}
+    gov_parties = state.government['coalition']
+    
+    # Alle Regierungsparteien stimmen (meistens) dafür
+    for p_id in gov_parties:
+        votes['yes'] += state.parliament['seats'].get(p_id, 0)
+        
+    # Alle anderen stimmen dagegen
+    for p_id, seats in state.parliament['seats'].items():
+        if p_id not in gov_parties:
+            votes['no'] += seats
+            
+    stability_mod = state.metrics['coalition_stability'] / 100.0 # z.B. 0.1 bei Stabilität 10
+    
+    rebels = int(votes['yes'] * (1 - stability_mod) * 0.2) # Bei 10 Stabilität rebellieren 18%
+    votes['yes'] -= rebels
+    votes['no'] += rebels
+    
+    passed = votes['yes'] > votes['no']
+    return passed, votes

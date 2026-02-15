@@ -1,0 +1,51 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..')))
+from content.base_event import GameEvent
+import content.game_data as gd
+
+class GeneralStrikeEvent(GameEvent):
+    
+    def should_trigger(self):
+        # WANN feuert es?
+        # Beispiel: Public Order unter 30 UND es ist 1932
+        is_chaos = self.state.metrics['public_order'] < 30
+        is_time = self.state.date['year'] == 1932
+        return is_chaos and is_time
+
+    def get_data(self):
+        # WAS passiert?
+        return {
+            "id": "general_strike_1932",
+            "title": "General Strike!",
+            "text": "The unions have shut down the country.",
+            "choices": [
+                {
+                    "text": "Negotiate",
+                    "success": {
+                        "msg": "We gave in to demands.",
+                        "effects": {"budget_int": -5, "public_order": 10}
+                    }
+                }
+            ]
+        }
+		
+Schritt 3: Registrieren (WICHTIG!)
+Damit der monthly_tick prüft, ob das Event feuert.
+Öffne src/engine/mechanics.py.
+Oben importieren: from content.events.general_strike import GeneralStrikeEvent.
+Ganz unten in process_monthly_tick, in der Liste possible_events:
+code
+Python
+possible_events = [
+    # ... andere Events ...
+    GeneralStrikeEvent(state), # <--- Hier einfügen
+]
+
+Schritt 4: Anzeigen
+Damit app.py das Event auch rendert, wenn es feuert.
+Öffne src/app.py.
+Im EVENT MODE (ca. Zeile 160), füge hinzu:
+(Eigentlich nicht mehr nötig!)
+HINWEIS: Da wir jetzt das dynamic_event_handler System haben (Zeile 476 in mechanics triggered_crisis = {"type": "event_trigger"...}), musst du das Event NICHT mehr manuell in app.py eintragen, solange es über den process_monthly_tick ausgelöst wird! Das System lädt die Daten automatisch in dynamic_event_data.
+Du musst es nur in app.py eintragen, wenn du es hart verketten willst (z.B. Event A führt direkt zu Event B).

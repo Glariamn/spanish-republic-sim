@@ -207,19 +207,23 @@ def render_sidebar():
         mil = st.session_state.military
         pen = mil['army_peninsular']
         st.markdown("**Ejército Peninsular**")
-        st.caption(f"Hombres: {pen['manpower']:,}")
+        st.caption(f"Oficiales: {pen['officers']:,}")
+        st.caption(f"Hombres: {pen['soldiers']:,}")
         st.caption(f"Oficiales: {get_loyalty_label(pen['officer_loyalty'])}")
         st.caption(f"Soldados:  {get_loyalty_label(pen['soldier_loyalty'])}")
         st.divider()
         afr = mil['army_africa']
         st.markdown("**Ejército de África**")
-        st.caption(f"Hombres: {afr['manpower']:,}")
+        st.caption(f"Oficiales: {pen['officers']:,}")
+        st.caption(f"Hombres: {afr['soldiers']:,}")
         st.caption(f"Oficiales: {get_loyalty_label(afr['officer_loyalty'])}")
         st.caption(f"Regulares: {get_loyalty_label(afr['soldier_loyalty'])}")
         st.divider()
         nav = mil['navy']
         st.markdown("**La Armada**")
         st.caption(f"Buques: {nav['ships_heavy']} Pes. / {nav['ships_light']} Lig.")
+        st.caption(f"Oficiales: {nav['officers']:,}")
+        st.caption(f"Marineros: {nav['sailors']:,}")
         st.caption(f"Oficiales: {get_loyalty_label(nav['officer_loyalty'])}")
         st.caption(f"Marineros: {get_loyalty_label(nav['sailor_loyalty'])}")
 
@@ -248,6 +252,27 @@ def render_sidebar():
         if st.button("JUMP TO: June Elections"):
             st.session_state.current_event_id = "1931_june_elections"
             st.session_state.last_outcome_text = None
+            st.rerun()
+
+def render_government_actions(state):
+    """Zeigt Aktionen an, die die Regierung direkt ausführen kann."""
+    with st.sidebar.expander("🏛️ Government Actions"):
+        
+        # --- Aktion 1: Parlament auflösen ---
+        can_dissolve = False
+        reason = ""
+        
+        # Bedingungen prüfen:
+        if sum(state.parliament['seats'].values()) == 0:
+            reason = "No parliament to dissolve."
+        elif state.metrics['coalition_stability'] > 40:
+            reason = "Coalition is too stable."
+        else:
+            can_dissolve = True
+
+        if st.button("Dissolve Cortes & Call Snap Election", disabled=not can_dissolve, help=reason):
+            # Wenn geklickt, setzen wir einen Flag für den Haupt-Loop
+            st.session_state.action_confirmation = "dissolve_parliament"
             st.rerun()
 
 def render_vote_result(vote_data):

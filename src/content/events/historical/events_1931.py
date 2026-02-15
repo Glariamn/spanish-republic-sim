@@ -287,3 +287,62 @@ def get_event_lerroux_exit(state):
             }
         ]
     }
+
+# --- 5. DER VERFASSUNGSSTREIT (Oktober 1931) ---
+def get_event_constitution_article_26(state):
+    return {
+        "id": "1931_constitution_26",
+        "title": "The Religious Question (Article 26)",
+        "date_str": "Oktober 1931",
+        "text": """
+        **The Constitution is being drafted.**
+        
+        The debate has reached **Article 26**, which proposes:
+        1. Complete separation of Church and State.
+        2. Banning Jesuits.
+        3. Ending state payment of priests.
+        
+        The Conservative Republicans (**DLR**) and Radicals (**PRR**) warn this is "political suicide". 
+        The Socialists (**PSOE**) and your own Left-Republicans (**AR**) demand a secular state now.
+        
+        Prime Minister Alcalá-Zamora (DLR) threatens to resign if this passes.
+        """,
+        "choices": [
+            {
+                "text": "Push Article 26 fully! (Secular State)",
+                "tooltip": "Historic Path. Azaña's famous speech: 'Spain has ceased to be Catholic'.",
+                "success": {
+                    "msg": "The Article passes! Alcalá-Zamora and Maura resign in protest. Azaña must lead.",
+                    "effects": {
+                        # DLR (Rechts-Republikaner) verlassen die Regierung
+                        "remove_party": gd.PARTY_DLR,
+                        
+                        "modify_relation": {"source": gd.PARTY_DLR, "target": gd.PARTY_AR, "amount": -30},
+                        "modify_relation_2": {"source": gd.PARTY_PRR, "target": gd.PARTY_AR, "amount": -15}, # Hack für 2. Relation
+                        "coalition_stability": 10,
+                        
+                        "society": {"clergy": -40, "aristocracy": -20, "workers_urban": 15},
+                        "modify_faction": {"tag": "left", "amount": -20}, 
+                        
+                        "transfer_ministry": gd.PARTY_DLR # Deren Ministerien werden frei/verteilt
+                    }
+                }
+            },
+            {
+                "text": "Compromise to save the Coalition.",
+                "tooltip": "Water down the article. Keeps DLR, but enrages the Socialists.",
+                "success": {
+                    "msg": "We dilute the text. The Church keeps some privileges. The Socialists feel betrayed.",
+                    "effects": {
+                        "coalition_stability": 5, 
+                        "modify_relation": {"source": gd.PARTY_PSOE, "target": gd.PARTY_AR, "amount": -25},
+                        "modify_faction": {"tag": "left", "amount": 30}, 
+                        "demographic_shift": {
+                            "group": "workers_urban",
+                            "changes": {gd.PARTY_PSOE: -0.05, gd.PARTY_PCE: 0.03} 
+                        }
+                    }
+                }
+            }
+        ]
+    }

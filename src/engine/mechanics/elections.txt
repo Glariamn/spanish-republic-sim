@@ -1,0 +1,155 @@
+import content.game_data as gd
+
+def calculate_election_results(state):
+    """Simuliert die Wahl mit Wahlbeteiligung und Mobilisierung."""
+    state.history['last_election_seats'] = state.parliament['seats'].copy()
+    
+    # Voter Turnout
+    base_turnout = 0.70
+    stability_mod = (50 - state.metrics['coalition_stability']) / 200 
+    order_mod = (50 - state.metrics['public_order']) / 200
+    final_turnout = max(0.5, min(0.95, base_turnout + stability_mod + order_mod))
+    
+    CLASS_WEIGHTS = {
+        "aristocracy": 1, "clergy": 2, "bourgeoisie": 5,
+        "workers_urban": 10, "workers_rural": 15, "soldiers": 3
+    }
+    
+    votes = {}
+
+    for group_name, weight in CLASS_WEIGHTS.items():
+        if group_name in state.election_demographics:
+            preferences = state.election_demographics[group_name]
+            for party_id, percentage in preferences.items():
+                party_data = state.parties.get(party_id, gd.PARTIES['others'])
+                mobilization_mod = party_data.get('institutionalization', 50) / 100.0
+                vote_share = (weight * percentage) * mobilization_mod * final_turnout
+                
+                if party_id not in votes: votes[party_id] = 0
+                votes[party_id] += vote_share
+
+    # Sitze verteilen
+    total_vote_points = sum(votes.values())
+    total_parliament_seats = 470
+    new_seats = {}
+    current_seat_sum = 0
+    
+    if gd.PARTY_CNT in votes: del votes[gd.PARTY_CNT]
+
+    for party_id, score in votes.items():
+        if total_vote_points > 0:
+            share = score / total_vote_points
+            seats = int(share * total_parliament_seats)
+            new_seats[party_id] = seats
+            current_seat_sum += seats
+    
+    remainder = total_parliament_seats - current_seat_sum
+    if remainder > 0:
+        sorted_parties = sorted(new_seats.items(), key=lambda x: x[1], reverse=True)
+        if sorted_parties:
+            new_seats[sorted_parties[0][0]] += remainder
+        else:
+            new_seats['others'] = new_seats.get('others', 0) + remainder
+
+    # Wahldatum setzen
+    term = state.government.get('term_length', 48)
+    next_y = state.date['year'] + (term // 12)
+    state.government['next_election_date'] = {"year": next_y, "month": state.date['month']}
+        
+    return new_seats
+
+def call_new_election(state):
+    """Führt Neuwahlen durch und setzt State zurück."""
+    new_seats = calculate_election_results(state)
+    state.parliament['seats'] = new_seats
+    
+    state.government['coalition'] = [] 
+    state.government['is_minority'] = False
+    
+    for m in state.ministries.values():
+        m['holder'] = f"Acting ({m['holder']})"
+
+    current_year = state.date['year']
+    current_month = state.date['month']
+    future_year = current_year + 4
+    
+    state.government['next_election_date'] = {
+        "year": future_year, 
+        "month": current_month
+    }
+        
+    return f"Election complete. Next election set for {current_month}/{future_year}."
+
+def apply_demographic_vector(state, group_name, changes):
+    """Wendet Wählerverschiebungen an und gleicht aus."""
+    if 'election_demographics' not in state: return
+    demos = state.election_demographics
+    if group_name not in demos: return
+    
+    preferences = demos[group_name]
+    net_change = 0.0
+    active_parties = []
+    logs = []
+
+    for party_id, amount in changes.items():
+        if party_id not in preferences: preferences[party_id] = 0.0
+        old_val = preferences[party_id]
+        new_val = max(0.0, old_val + amount)
+        actual_diff = new_val - old_val
+        
+        preferences[party_id] = new_val
+        net_change += actual_diff
+        active_parties.append(party_id)
+        
+        p_name = gd.PARTIES.get(party_id, gd.PARTIES["others"])['name']
+        if abs(actual_diff) > 0.001:
+            logs.append(f"{p_name} {actual_diff*100:+.1f}%")
+
+    # Ausgleich
+    passive_parties = [p for p in preferences if p not in active_parties]
+    passive_sum = sum(preferences[p] for p in passive_parties)
+    
+    if passive_parties and abs(net_change) > 0.0001:
+        if net_change > 0: # Vergabe
+            if passive_sum > 0:
+                for p in passive_parties:
+                    share = preferences[p] / passive_sum
+                    deduction = net_change * share
+                    preferences[p] = max(0.0, preferences[p] - deduction)
+        elif net_change < 0: # Verteilung
+            gain_total = abs(net_change)
+            if passive_sum > 0:
+                 for p in passive_parties:
+                    share = preferences[p] / passive_sum
+                    preferences[p] += gain_total * share
+            elif "others" in preferences:
+                 preferences["others"] += gain_total
+
+    # Normalisierung
+    total = sum(preferences.values())
+    if total != 0:
+        for p in preferences: preferences[p] /= total
+        
+    if logs: return f"Shift in {group_name}: " + ", ".join(logs)
+    return None
+
+def update_voter_sentiment(state):
+    """Wählerwanderung durch Unzufriedenheit."""
+    if 'society' not in state: return
+    
+    opposition_map = {
+        "aristocracy": gd.PARTY_MON, "clergy": gd.PARTY_CEDA,
+        "bourgeoisie": gd.PARTY_CEDA, "workers_urban": gd.PARTY_PCE, 
+        "workers_rural": gd.PARTY_CNT, "soldiers": gd.PARTY_FAL
+    }
+    
+    impact_reports = []
+    for group, satisfaction in state.society.items():
+        if group in state.election_demographics and satisfaction < 35:
+            loss = (35 - satisfaction) / 1000
+            target = opposition_map.get(group, gd.PARTY_MON)
+            apply_demographic_vector(state, group, {target: loss})
+            if loss > 0.005:
+                impact_reports.append(f"{group.title()} unhappy.")
+
+    return impact_reports

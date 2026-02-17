@@ -1,9 +1,7 @@
-# src/content/events/system/confidence_vote.py
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..')))
 from content.base_event import GameEvent
-import content.game_data as gd
 
 class ConfidenceVoteEvent(GameEvent):
     
@@ -33,7 +31,6 @@ class ConfidenceVoteEvent(GameEvent):
                     "text": "Face the Vote",
                     "tooltip": "A parliamentary vote will decide the fate of your government.",
                     "success": {
-                        # Dieser Effekt-Key ist ein Signal für eine spezielle Abstimmung
                         "msg": "The votes are being counted...",
                         "effects": {"trigger_confidence_vote": True}
                     }

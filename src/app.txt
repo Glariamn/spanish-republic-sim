@@ -29,6 +29,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+if 'render_counter' not in st.session_state: st.session_state.render_counter = 0 
+st.session_state.render_counter += 1
+
 def init_game_state(player_party_id):
     st.session_state.player_party = player_party_id
     import copy
@@ -103,11 +106,6 @@ def apply_effects(effects_dict):
         elif k == "budget_int": st.session_state.economy['budget_int'] += v
         elif k == "public_order": st.session_state.metrics['public_order'] += v
         elif k == "add_law": st.session_state.passed_laws.add(v)
-        elif k == "rename_party":
-            p = v["party"]
-            new = v["new_name"]
-            st.session_state.parties[p]["name"] = new
-
             
     return msg_log
 
@@ -184,35 +182,37 @@ else:
             if curr == "1931_june_elections": 
                 ui.render_parliament_chart()
 
-            for idx, c in enumerate(ev_data['choices']):
+            for c in ev_data['choices']:
                 if c.get('requires_party', []) == [] or st.session_state.player_party in c.get('requires_party', []):
-                    btn_key = f"choice_{curr}_{idx}"
-                    if st.button(c['text'], help=c.get('tooltip'), key=btn_key):
-                        success, _, _, _ = mech.calculate_outcome(
-                            c.get('base_chance', 100),
-                            c.get('modifiers', {}),
-                            st.session_state
-                        )
-                        res = c['success'] if success else c.get('failure', c['success'])
+                    for idx, c in enumerate(ev_data['choices']):
+                        if c.get('requires_party', []) == [] or st.session_state.player_party in c.get('requires_party', []):
+                            btn_key = f"choice_{curr}_{idx}_{st.session_state.render_counter}"
+                            if st.button(c['text'], help=c.get('tooltip'), key=btn_key):
+                                success, _, _, _ = mech.calculate_outcome(c.get('base_chance', 100), c.get('modifiers', {}), st.session_state)
+                                res = c['success'] if success else c.get('failure', c['success'])
+                                
+                                logs = apply_effects(res.get('effects', {}))
+                                st.session_state.last_outcome_text = res['msg'] + logs
+                                
+                                # --- CHAIN LOGIC ---
+                                # Standard: Zurück zum Desk (None)
+                                next_event = None
+                                
+                                # Spezielle Ketten
+                                if curr == "1931_macia_declaration": 
+                                    next_event = None
+                                elif curr == "1931_cardinal_segura": 
+                                    next_event = "1931_june_elections"
+                                
+                                # Wenn Wahl/Negotiation getriggert wurde, übernimmt apply_effects die ID
+                                if "trigger_election" not in res.get('effects', {}) and "start_negotiation" not in res.get('effects', {}):
+                                    st.session_state.current_event_id = next_event
+                                    
+                                # History
+                                if curr not in st.session_state.get('event_history', []):
+                                    st.session_state.event_history.append(curr)
 
-                        logs = apply_effects(res.get('effects', {}))
-                        st.session_state.last_outcome_text = res['msg'] + logs
-
-                        next_event = None
-                        if curr == "1931_macia_declaration":
-                            next_event = None
-                        elif curr == "1931_cardinal_segura":
-                            next_event = "1931_june_elections"
-
-                        if "trigger_election" not in res.get('effects', {}) and "start_negotiation" not in res.get('effects', {}):
-                            st.session_state.current_event_id = next_event
-
-                        if curr not in st.session_state.get('event_history', []):
-                            st.session_state.event_history.append(curr)
-
-                        st.rerun()
-
-
+                                st.rerun()
         else:
             st.error(f"Event not found/mapped: {curr}")
 

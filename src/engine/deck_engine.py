@@ -3,7 +3,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Importiere deine Module
+# Import your modules
 import content.initiatives.agriculture.agriculture as card_agri
 
 def get_all_potential_cards(state):

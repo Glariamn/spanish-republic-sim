@@ -1,12 +1,13 @@
 import sys
 import os
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# IMPORTS DER KLASSEN
 from content.initiatives.politics.coalition_crisis import CoalitionCrisisEvent
 from content.initiatives.party.faction_schism import FactionSchismEvent
 from content.events.historical.burning_convents import BurningConventsEvent
 from content.events.system.confidence_vote import ConfidenceVoteEvent
+from content.events.historical.events_1931 import MaciaDeclarationEvent, CardinalSeguraEvent, JuneElectionsEvent, LerrouxExitEvent, Constitution26Event
 
 import random
 import content.game_data as gd
@@ -253,37 +254,45 @@ def update_voter_sentiment(state):
 
 # --- FACTIONS ---
 
-def modify_faction_dissent(state, target_tag, amount):
-    if 'my_factions' not in state:
-        import copy
-        state.my_factions = copy.deepcopy(gd.PARTIES[state.player_party]['factions'])
+def modify_faction_dissent(state, changes):
+    """
+    Modifiziert den Dissent von Faktionen. Kann gezielt nach Keys oder 
+    allgemein nach Tags arbeiten.
 
-    affected_list = []
+    Usage 1 (Gezielt nach Keys):
+    changes = {"psoe_caballeristas": 20, "psoe_prietistas": -5}
     
-    for key, faction in state.my_factions.items():
-        if target_tag in faction.get('tags', []):
+    Usage 2 (Allgemein nach Tags):
+    changes = {"tag": "radical", "amount": 15}
+    """
+    if 'my_factions' not in state:
+        return
+
+    # Modify via Tags
+    if "tag" in changes and "amount" in changes:
+        target_tag = changes["tag"]
+        amount = changes["amount"]
+        
+        for key, faction in state.my_factions.items():
+            faction_tags = faction.get('tags', [])
             should_modify = False
             
-            # Tag Matching Logik
             if target_tag == "all":
                 should_modify = True
-            elif target_tag == faction['tag']:
+            elif target_tag.startswith("not_"):
+                if target_tag[4:] not in faction_tags:
+                    should_modify = True
+            elif target_tag in faction_tags:
                 should_modify = True
-            elif target_tag.startswith("not_") and faction['tag'] != target_tag[4:]:
-                should_modify = True
-                
+
             if should_modify:
-                # Dissent ändern (0 bis 100)
-                old_val = faction['dissent']
-                new_val = max(0, min(100, old_val + amount))
-                faction['dissent'] = new_val
-                
-                diff = new_val - old_val
-                if diff != 0:
-                    sign = "+" if diff > 0 else ""
-                    affected_list.append(f"{faction['name']} ({sign}{diff} Dissent)")
-            
-    return affected_list
+                faction['dissent'] = max(0, min(100, faction['dissent'] + amount))
+
+    # Modify via Keys
+    else:
+        for key, amount in changes.items():
+            if key in state.my_factions:
+                state.my_factions[key]['dissent'] = max(0, min(100, state.my_factions[key]['dissent'] + amount))
 
 def execute_faction_split(state, faction_key):
     """
@@ -646,67 +655,46 @@ def process_monthly_tick(state):
     if state.date['month'] > 12:
         state.date['month'] = 1
         state.date['year'] += 1
-    expenses = state.economy['monthly_expenses_int']
-    state.economy['budget_int'] += (state.economy['tax_revenue_int'] - expenses)
-
-    entropy_msg = apply_entropy(state)
-
-    # 4. Historical Event Check
-    historical_id = None
-    y, m = state.date['year'], state.date['month']
     
-    if y == 1931:
-        if m == 4: historical_id = "1931_macia_declaration"
-        elif m == 5: historical_id = "1931_cardinal_segura"
-        elif m == 6: historical_id = "1931_june_elections"
-        elif m == 10: historical_id = "1931_lerroux_exit"
-            
-    if historical_id:
-        return "Historical Event Imminent.", None, historical_id
-    
-    sentiment_logs = update_voter_sentiment(state)
-    
-    # 3. Das Land (Optional: Ernten etc. lassen wir erstmal weg)
-
-    triggered_crisis = None
-
+    # 1. Automatischer Wahl-Check (Prio 1)
     next_el = state.government['next_election_date']
-    if state.date['year'] == next_el['year'] and state.date['month'] == next_el['month'] and not y == 1931:
+    if state.date['year'] == next_el['year'] and state.date['month'] == next_el['month']:
         return "Term limit reached.", None, "auto_election_trigger"
-    
-    # 2. MINORITY GOVERNMENT
-    total_seats = sum(state.parliament['seats'].values())
-    if total_seats > 0:
-        gov_seats = get_coalition_seats(state)
-        if gov_seats <= (total_seats // 2):
-            if not state.government.get('is_minority', False):
-                 triggered_crisis = {
-                    "type": "minority_government",
-                    "msg": "Warning: Minority Government."
-                }
-                 return "Month processed.", triggered_crisis
 
-    # 3. EVENT CHECKER SYSTEM
+    # 2. Klassen-basierter Event Checker
+    # Hier sind alle Events aufgelistet
     possible_events = [
+        # Historisch 1931
+        JuneElectionsEvent(state),
+        MaciaDeclarationEvent(state),
+        CardinalSeguraEvent(state),
+        LerrouxExitEvent(state),
+        Constitution26Event(state),
+        
+        # Generisch / System
         ConfidenceVoteEvent(state),
         FactionSchismEvent(state),
         BurningConventsEvent(state),
-        CoalitionCrisisEvent(state),
+        CoalitionCrisisEvent(state)
     ]
     
     for event in possible_events:
         if event.should_trigger():
+            # WICHTIG: Wenn es Juni-Wahlen sind, geben wir das als ID zurück, 
+            # damit app.py weiß, welches Template es nutzen soll, ODER als dynamic data.
+            # Da JuneElectionsEvent eine Klasse ist, können wir die Daten holen.
             data = event.get_data()
-            triggered_crisis = {
-                "type": "event_trigger",
-                "event_data": data
-            }
-            break
+            
+            # Spezialfall Juni Wahlen: Wir wollen sicherstellen, dass die ID stimmt
+            if data['id'] == "1931_june_elections":
+                return "Historical Event.", None, "1931_june_elections"
+            
+            return "Event Triggered.", {"type": "event_trigger", "event_data": data}, None
 
-    msg = "Month processed."
-    if entropy_msg: msg += f" {entropy_msg}"
+    # 3. Sonstiges
+    update_voter_sentiment(state)
     
-    return msg, triggered_crisis, None
+    return "Month processed.", None, None
 
 def apply_entropy(state):
     """

@@ -486,7 +486,7 @@ class ConstitutionRatifiedEvent(GameEvent):
                             "add_law_2": "constitution_active",
                             "public_order": 10,
                             "coalition_stability": 15,
-                            "start_presidential_election": True
+                            "start_pm_nomination": True
                         }
                     }
                 }

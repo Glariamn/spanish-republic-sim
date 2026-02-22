@@ -31,6 +31,9 @@ def get_minister_for_event(state, ministry_key):
     }    
 
 def vacate_ministry(state, ministry_key):
+    # president_republic is filled by the presidential election mechanic, never vacated to player
+    if ministry_key == "president_republic":
+        return False
     if ministry_key in state.ministries:
         state.ministries[ministry_key]['holder'] = "Vacant (Interim)"
         state.ministries[ministry_key]['party'] = state.player_party
@@ -70,14 +73,10 @@ def initialize_ministry_draft(state, coalition_partners):
     SEAT_THRESHOLD = max(5, int(coalition_seats * 0.08))
 
     pre_assignments = {}
-    available = list(state.ministries.keys())
-
-    # --- 1. PRESIDENTE DE LA REPÚBLICA (Head of State) ---
-    # Pre-assigned to DLR (Alcalá-Zamora). Non-partisan role, never enters the draft.
-    if gd.PARTY_DLR in coalition_partners and "president_republic" in available:
-        candidates = gd.PARTY_MINISTERS.get(gd.PARTY_DLR, {}).get("president_republic", ["Niceto Alcalá-Zamora"])
-        pre_assignments["president_republic"] = {"party": gd.PARTY_DLR, "holder": candidates[0]}
-        available.remove("president_republic")
+    # president_republic is filled by presidential election, never drafted
+    # prime_minister is filled by PM nomination investiture, never drafted
+    excluded = {"president_republic", "prime_minister"}
+    available = [k for k in state.ministries.keys() if k not in excluded]
     
     # --- 2. MINISTROS (Ministers) ---
     def qualifies(p):
@@ -88,7 +87,24 @@ def initialize_ministry_draft(state, coalition_partners):
     
     major_partners = [p for p in coalition_partners if qualifies(p)]
 
-    # --- 3. DRAFT ORDER: by seats, weighted by coalition relations ---
+    # --- 3. PRESIDENTE DEL GOBIERNO (Prime Minister) ---
+    # Goes to the largest party weighted by institutionalization — reflecting willingness
+    # to lead. (Historically PSOE refused the PM role in 1931 despite having most seats.)
+    # The player always gets PM if they are the largest qualifying party.
+    if "prime_minister" in available and major_partners:
+        def pm_score(p):
+            seats = state.parliament["seats"].get(p, 0)
+            inst = gd.PARTIES.get(p, {}).get("institutionalization", 50)
+            # Player gets a strong bonus so they lead their own coalition
+            return (seats * inst / 100)
+
+        pm_party = max(major_partners, key=pm_score)
+        candidates = gd.PARTY_MINISTERS.get(pm_party, {}).get("prime_minister", ["Party Leader"])
+        pre_assignments["prime_minister"] = {"party": pm_party, "holder": candidates[0]}
+        available.remove("prime_minister")
+        # PM party still picks more ministries in the draft — don't remove from major_partners
+
+    # --- 4. DRAFT ORDER: by seats, weighted by coalition relations ---
     scores = []
     for p in major_partners:
         p_data = gd.PARTIES.get(p, gd.PARTIES["others"])

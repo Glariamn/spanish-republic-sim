@@ -42,16 +42,16 @@ ATENEOS = "ateneos"          # Intelligentia clubs
 # Historical Cabinet of the Provisional Government (April 1931)
 MINISTRIES = {
     "president_republic": {
-        "name": "Presidente",
-        "holder": "Vacant (Interim)",
+        "name": "Presidente de la República",
+        "holder": "Niceto Alcalá-Zamora",
         "party": PARTY_DLR,
-        "desc": "President of the Republic."
+        "desc": "Head of State. Elected by parliament. Not a cabinet position — cannot be claimed in the draft."
     },
     "prime_minister": {
         "name": "Presidente del Gobierno",
         "holder": "Niceto Alcalá-Zamora",
         "party": PARTY_DLR,
-        "desc": "Head of State & Government. Has veto power and can dissolve the Cortes."
+        "desc": "Head of Government. Confirmed by investiture vote."
     },
     "war": {
         "name": "Ministerio de la Guerra",
@@ -1440,7 +1440,7 @@ STATE_START = {
     "government": {
         "coalition": [PARTY_PSOE, PARTY_AR, PARTY_DLR, PARTY_PRR],
         "is_minority": False,
-        "next_election_date": { "year": 1931, "month": 6 }, 
+        "next_election_date": {"year": 1931, "month": 6},
         "term_length": 48
     },
 
@@ -1790,20 +1790,18 @@ COALITION_DEFINITIONS = [
 # Format: "PartyID": {"MinistryKey": ["Name1", "Name2"]}
 PARTY_MINISTERS = {
     PARTY_PSOE: {
-        "prime_minister": ["Largo Caballero"],
         "labor": ["Largo Caballero", "Indalecio Prieto"],
         "finance": ["Indalecio Prieto", "Juan Negrín"],
         "justice": ["Fernando de los Ríos"],
         "interior": ["Julian Besteiro"] # Hypothetisch
     },
     PARTY_AR: {
-        "war": ["Manuel Azaña"],
         "prime_minister": ["Manuel Azaña"],
+        "war": ["Manuel Azaña"],
         "state": ["Claudio Sánchez-Albornoz"],
         "finance": ["Jaime Carner"]
     },
     PARTY_PRR: { # Radicals
-        "prime_minister": ["Alejandro Lerroux"],
         "state": ["Alejandro Lerroux"],
         "interior": ["Rafael Salazar Alonso", "Diego Martínez Barrio", "Ricardo Samper"],
         "finance": ["Joaquín Chapaprieta"],
@@ -1811,6 +1809,7 @@ PARTY_MINISTERS = {
     },
     PARTY_DLR: {
         "president_republic": ["Niceto Alcalá-Zamora"],
+        "prime_minister": ["Niceto Alcalá-Zamora"],
         "interior": ["Miguel Maura"],
         "war": ["Maura (Interim)"]
     },

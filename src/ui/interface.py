@@ -1,5 +1,6 @@
 import sys
 import os
+import math
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -47,54 +48,206 @@ def format_money(amount_int):
 
 # --- RENDER FUNCTIONS ---
 
-def render_parliament_chart():
-    seats = st.session_state.parliament['seats']
-    total_seats = 470
-    
-    if sum(seats.values()) == 0:
+import pandas as pd
+import altair as alt
+import math
+import streamlit as st
+import content.game_data as gd
+
+def render_top_overview(state):
+    """
+    Realistic Spanish Congreso hemicycle with correct ideological ordering,
+    parchment background, decree header, drop shadow, majority threshold arc,
+    fade‑in animation, and Gobierno/Oposición layout.
+    """
+
+    # --- Parliament existence ---
+    seats = state.parliament.get('seats', {})
+    total_seats = sum(seats.values())
+
+    if total_seats == 0:
         st.info("Cortes Constituyentes: No elected parliament yet.")
         st.caption("The Provisional Government rules by decree until the June elections.")
         return
 
+    # --- Build party data ---
     data = []
     for party_id, count in seats.items():
-        if count > 0: 
-            p_data = gd.PARTIES.get(party_id, gd.PARTIES["others"])
-            percent = (count / total_seats) * 100
-            data.append({
-                "Party": p_data['name'],
-                "Seats": count,
-                "Percent": f"{percent:.1f}%", 
-                "Color": p_data['color'],
-                "Order": p_data.get('ideology_index', 5)
+        if count <= 0:
+            continue
+
+        p_data = gd.PARTIES.get(party_id, gd.PARTIES.get("others", {}))
+        order = p_data.get("ideology_index", 5)
+
+        if party_id == "others":
+            order = 100
+        elif party_id == "monarchists" or p_data.get("name") == "Monarchists":
+            order = 99
+
+        data.append({
+            "id": party_id,
+            "name": p_data.get("name", party_id),
+            "seats": count,
+            "color": p_data.get("color", "#888888"),
+            "order": order
+        })
+
+    data.sort(key=lambda x: x["order"])
+
+    # --- Hemicycle geometry ---
+    def get_spanish_hemicycle_df(party_data, total):
+        rows = 9
+        radii = [1.0 + i * 0.22 for i in range(rows)]
+        angle_start = math.radians(200)
+        angle_end = math.radians(-20)
+
+        expanded = []
+        for p in party_data:
+            expanded += [p] * p["seats"]
+
+        angles = [
+            angle_start + i * (angle_end - angle_start) / (total - 1)
+            for i in range(total)
+        ]
+
+        points = []
+        for idx, angle in enumerate(angles):
+            row = idx % rows
+            r = radii[row]
+
+            x = r * math.cos(angle)
+            y = r * math.sin(angle) * 0.55
+
+            p = expanded[idx]
+
+            points.append({
+                "x": x,
+                "y": y,
+                "Party": p["name"],
+                "Color": p["color"],
+                "Seats": p["seats"]
             })
 
-    if not data: return
+        # Majority threshold line
+        majority = total // 2 + 1
+        majority_angle = angles[majority - 1]
 
-    # Sortierung 
-    for item in data:
-        if item['Party'] == "Others": item['Order'] = 100
-        elif item['Party'] == "Monarchists": item['Order'] = 99
-    df = pd.DataFrame(data).sort_values("Order")
-    
-    domain = df['Party'].tolist()
-    range_ = df['Color'].tolist()
+        threshold = pd.DataFrame([{
+            "x1": radii[0] * math.cos(majority_angle),
+            "y1": radii[0] * math.sin(majority_angle) * 0.55,
+            "x2": radii[-1] * math.cos(majority_angle),
+            "y2": radii[-1] * math.sin(majority_angle) * 0.55,
+        }])
 
-    chart = alt.Chart(df).mark_bar().encode(
-        x=alt.X('Seats', stack='normalize', axis=None),
-        order=alt.Order('Order', sort='ascending'),
-        color=alt.Color('Party', scale=alt.Scale(domain=domain, range=range_), legend=None),
-        tooltip=['Party', 'Seats', 'Percent']
-    ).properties(height=150)
-    
-    st.markdown("**Cortes Generales**")
-    st.altair_chart(chart, use_container_width=True)
-    
-    # Text-Summary
-    cols = st.columns(4)
-    sorted_by_size = sorted(data, key=lambda x: x['Seats'], reverse=True)[:4]
-    for i, item in enumerate(sorted_by_size):
-        cols[i].metric(item['Party'], f"{item['Seats']} ({item['Percent']})")
+        return pd.DataFrame(points), threshold
+
+    df, threshold = get_spanish_hemicycle_df(data, total_seats)
+
+    # --- CSS: parchment, fade‑in, shadow ---
+    st.markdown("""
+        <style>
+            .parchment {
+                background:
+                    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), rgba(0,0,0,0) 70%),
+                    radial-gradient(circle at 70% 70%, rgba(255,255,255,0.3), rgba(0,0,0,0) 80%),
+                    #f2e9d8;
+                padding: 25px;
+                border-radius: 14px;
+                border: 1px solid #d8c9b3;
+                box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+            }
+            .fadein {
+                animation: fadein 0.8s ease-in-out;
+            }
+            @keyframes fadein {
+                from { opacity: 0; transform: translateY(10px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # --- Decree header ---
+    st.markdown("""
+        <div style="
+            background-color: #d8c9b3;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 18px;
+            text-align: center;
+            border: 1px solid #b8a894;
+            margin-bottom: 10px;
+        ">
+            Cortes Generales — Legislatura I
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- Hemicycle panel ---
+    st.markdown(f"### Cortes Constituyentes ({total_seats} Escaños)")
+
+    if not df.empty:
+        max_r = max(abs(df["x"]).max(), abs(df["y"]).max())
+        domain = [-max_r, max_r]
+
+        chart = alt.Chart(df).mark_circle(size=55).encode(
+            x=alt.X("x:Q", axis=None, scale=alt.Scale(domain=domain)),
+            y=alt.Y("y:Q", axis=None, scale=alt.Scale(domain=domain)),
+            color=alt.Color("Color:N", scale=None),
+            tooltip=["Party", "Seats"]
+        ).properties(height=300)
+
+        line = alt.Chart(threshold).mark_rule(
+            color="#444",
+            strokeWidth=2,
+            strokeDash=[4, 4]
+        ).encode(
+            x='x1:Q', x2='x2:Q',
+            y='y1:Q', y2='y2:Q'
+        )
+
+        st.altair_chart(chart + line, use_container_width=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- Gobierno & Oposición ---
+    coalition_ids = state.government.get("coalition", [])
+
+    gov_data = [d for d in data if d["id"] in coalition_ids]
+    opp_data = [d for d in data if d["id"] not in coalition_ids]
+
+    gov_data.sort(key=lambda x: x["order"])
+    opp_data.sort(key=lambda x: x["order"])
+
+    gov_total = sum(d["seats"] for d in gov_data)
+    opp_total = sum(d["seats"] for d in opp_data)
+    majority = total_seats // 2 + 1
+
+    col_gov, col_opp = st.columns(2)
+
+    with col_gov:
+        with st.container(border=True):
+            st.markdown(f"🏛️ **Gobierno (Coalición) — {gov_total} Sitze**")
+            for d in gov_data:
+                st.markdown(
+                    f"<span style='color:{d['color']}'>■</span> "
+                    f"**{d['name']}** {d['seats']}",
+                    unsafe_allow_html=True
+                )
+
+    with col_opp:
+        with st.container(border=True):
+            st.markdown(f"⚖️ **Oposición — {opp_total} Sitze**")
+            for d in opp_data:
+                st.markdown(
+                    f"<span style='color:{d['color']}'>■</span> "
+                    f"{d['name']} {d['seats']}",
+                    unsafe_allow_html=True
+                )
+
+    st.markdown(
+        f"**Mehrheitsschwelle:** {majority} Sitze — "
+        f"{'✔️ erreicht' if gov_total >= majority else '❌ nicht erreicht'}"
+    )
 
 def render_election_comparison():
     """Zeigt den Unterschied zur letzten Wahl."""
@@ -144,21 +297,39 @@ def render_election_comparison():
 
     st.divider()
 
-    # --- Map ---
-    st.subheader("Karte: Stärkste Partei pro Provinz")
-    df = strongest_party_per_province(st.session_state)
-    chart = draw_spain_map(df)
-    st.altair_chart(chart, use_container_width=True)
+    with st.expander("📊 Breakdown by Region"):
+        render_region_vote_table(st.session_state)
+        render_region_summary(st.session_state)
+
+    # DEBUG STUFF
+    if not st.session_state.get("disable_nudge", False):
+        with st.expander("📊 Election Diagnostics & Nudge Matrix"):
+            from content.game_data import TARGET_1931
+            render_nudge_visualization(st.session_state, TARGET_1931)
+
+        with st.expander("📊 Nudge-Matrix & Empfehlungen"):
+            render_nudge_recommendations(st.session_state)
+
+        with st.expander("📊 Nudge Empfehlungen pro Provinz"):
+            render_nudge_recommendations_detailed(st.session_state)
 
     st.divider()
+
+    # --- Map ---
+    if not st.session_state.get("disable_maps", False):
+        st.subheader("Karte: Stärkste Partei pro Provinz")
+        df = strongest_party_per_province(st.session_state)
+        chart = draw_spain_map(df)
+        st.altair_chart(chart, use_container_width=True)
+    else:
+        st.info("Maps disabled (Developer Tools)")
 
     # --- Political Intensity ---
-    st.subheader("Karte: Politische Intensität")
-    df = political_intensity_per_province(st.session_state)
-    chart = draw_intensity_map(df)
-    st.altair_chart(chart, use_container_width=True)
-
-    st.divider()
+    if not st.session_state.get("disable_maps", False):
+        st.subheader("Karte: Politische Intensität")
+        df = political_intensity_per_province(st.session_state)
+        chart = draw_intensity_map(df)
+        st.altair_chart(chart, use_container_width=True)
 
     # --- Constituency Breakdown ---
     st.markdown("### 🗳️ Constituency Results")
@@ -194,7 +365,6 @@ def render_election_comparison():
 
                 st.write("---")
     st.divider()
-
 
 def render_sidebar():
     """Die Seitenleiste."""
@@ -301,13 +471,18 @@ def render_sidebar():
     
     with st.sidebar.expander("Gabinete (Cabinet)", expanded=False):
         for key, ministry in st.session_state.ministries.items():
-            holder = ministry['holder'].split()[-1]
-            party_code = gd.PARTIES[ministry['party']]['name']
-            st.markdown(f"<small>{ministry['name'].split()[0]}: {holder} ({party_code})</small>", unsafe_allow_html=True)
+            if ministry['party'] is None:
+                continue
+            name_parts = [w for w in ministry['holder'].split() if not w.startswith('(')]
+            holder = name_parts[-1] if name_parts else ministry['holder']
+            party_code = gd.PARTIES.get(ministry['party'], gd.PARTIES['others'])['name']
+            st.markdown(f"<small>{ministry['name']}: {holder} ({party_code})</small>", unsafe_allow_html=True)
     
     # DEBUG BUTTONS
     st.sidebar.divider()
     with st.sidebar.expander("🛠️ Developer Tools"):
+        st.session_state.disable_maps = st.checkbox("Disable Maps (Developer)", value=True)
+        st.session_state.disable_nudge = st.checkbox("Disable Nudge Statistics (Developer)", value=True)
         if st.button("JUMP TO: June Elections"):
             st.session_state.current_event_id = "1931_june_elections"
             st.session_state.last_outcome_text = None
@@ -349,7 +524,10 @@ def render_vote_result(vote_data):
     no_w   = max(1, no)
     
     # Visueller Balken
-    c1, c2, c3 = st.columns([yes_w, abst_w, no_w])
+    if abst > 0:
+        c1, c2, c3 = st.columns([3, 1, 1])
+    else:
+        c1, c3 = st.columns([3, 1])
     c1.success(f"YES: {yes}")
     if abst > 0: c2.warning(f"ABS: {abst}")
     c3.error(f"NO: {no}")
@@ -362,7 +540,7 @@ def render_vote_result(vote_data):
     # Details (Wer hat wie gestimmt?)
     with st.expander("📜 Diario de Sesiones", expanded=True):
         for entry in vote_data['details']:
-            st.markdown(f"**:{entry['color']}[{entry['party']}]** — {entry['text']}")
+            st.markdown( f"<span style='color:{entry['color']}'>■</span> " f"**{entry['party']}** — {entry['text']}", unsafe_allow_html=True )
 
 def render_desk_layout(hand, time_units):
     """Zeigt Stapel oben und Hand unten."""
@@ -419,3 +597,122 @@ def render_card_detail(card):
             
     if st.button("Cancel"): return "CANCEL"
     return decision
+
+from engine.nudge import compute_nudge_matrix, compute_class_contributions
+def render_nudge_visualization(state, target_seats):
+    import altair as alt
+    import pandas as pd
+    from engine.nudge import compute_nudge_matrix
+
+    df = compute_nudge_matrix(state, target_seats)
+
+    st.markdown("### 🎯 Nudge-Matrix: Abweichungen vom Ziel")
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X("delta:Q", title="Über-/Unterperformance (Sitze)"),
+            y=alt.Y("party:N", sort="-x", title="Partei"),
+            color=alt.Color("delta:Q", scale=alt.Scale(scheme="redblue"), legend=None),
+            tooltip=["party", "actual_seats", "target_seats", "delta"]
+        )
+        .properties(height=300)
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
+    st.dataframe(df)
+
+from engine.nudge import compute_nudge_recommendations
+from content.game_data import TARGET_1931
+
+def render_nudge_recommendations(state):
+    import altair as alt
+
+    df = compute_nudge_recommendations(state, TARGET_1931)
+    if df.empty:
+        st.info("No nudge recommendations — results match targets closely.")
+        return
+
+    st.markdown("### 🎯 Nudge-Empfehlungen nach Klasse")
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X("pct_shift:Q", title="Empfohlene Verschiebung (Anteil)"),
+            y=alt.Y("party:N", title="Partei"),
+            color=alt.Color("class:N", title="Klasse"),
+            tooltip=["party", "class", "pct_shift"]
+        )
+        .properties(height=300)
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+    st.markdown("#### Verbale Empfehlungen")
+    for party in df["party"].unique():
+        sub = df[df["party"] == party]
+        parts = []
+        for _, row in sub.iterrows():
+            direction = "−" if row["pct_shift"] < 0 else "+"
+            parts.append(f"{direction}{abs(row['pct_shift']*100):.1f}% in {row['class']}")
+        st.write(f"**{party}:** " + ", ".join(parts))
+
+def render_nudge_recommendations_detailed(state):
+    from engine.nudge import compute_nudge_recommendations_detailed
+
+    df = compute_nudge_recommendations_detailed(state, TARGET_1931)
+
+    st.markdown("### 🎯 Automatische Nudge-Empfehlungen (Klasse + Region)")
+
+    if df.empty:
+        st.info("Keine Empfehlungen — Ergebnisse sind nah am Ziel.")
+        return
+
+    # Gruppiert nach Partei
+    for party in df["party"].unique():
+        st.markdown(f"#### {party}")
+        sub = df[df["party"] == party]
+
+        # Sortiere nach absolutem Effekt
+        sub = sub.sort_values("pct_shift", key=lambda x: abs(x), ascending=False)
+
+        for _, row in sub.iterrows():
+            direction = "−" if row["pct_shift"] < 0 else "+"
+            st.write(
+                f"{direction}{abs(row['pct_shift']*100):.1f}% "
+                f"in **{row['class']}** in **{row['region']}**"
+            )
+
+def render_region_vote_table(state):
+    from engine.nudge import compute_votes_by_region, compute_seats_by_region
+
+    df_votes = compute_votes_by_region(state)
+    df_seats = compute_seats_by_region(state, df_votes)
+    df_seats = df_seats.groupby(["region", "party"], as_index=False)["seats"].sum()
+
+    st.markdown("### 🗳️ Stimmen & Sitze pro Region")
+
+    # Kompakte Tabelle
+
+    df_pivot = df_votes.pivot(index="region", columns="party", values="share")
+    st.dataframe(df_pivot.style.format("{:.2%}"))
+
+    st.markdown("### 🪑 Sitzverteilung pro Region")
+    df_seat_pivot = df_seats.pivot(index="region", columns="party", values="seats")
+    st.dataframe(df_seat_pivot.fillna(0).astype(int))
+
+def render_region_summary(state):
+    from engine.nudge import compute_votes_by_region
+    df = compute_votes_by_region(state)
+
+    st.markdown("### 📋 Kompakte Zusammenfassung pro Region")
+
+    for region in df["region"].unique():
+        sub = df[df["region"] == region].sort_values("share", ascending=False)
+        parts = [
+            f"{row['party']} {row['share']*100:.1f}%"
+            for _, row in sub.iterrows()
+        ]
+        st.write(f"**{region}:** " + ", ".join(parts))

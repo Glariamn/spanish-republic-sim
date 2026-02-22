@@ -95,7 +95,8 @@ def calculate_election_results(state):
 
     # 4. Ergebnis speichern
     state.parliament['seats'] = national_seats
-    state.history['last_election_breakdown'] = breakdown  # NEU
+    state.total_seats = sum(national_seats.values())
+    state.history['last_election_breakdown'] = breakdown  
 
     # 5. Nächste Wahl
     term = state.government.get('term_length', 48)
@@ -106,8 +107,6 @@ def calculate_election_results(state):
     }
 
     return national_seats
-
-
 
 def call_new_election(state):
     """Führt Neuwahlen durch und setzt State zurück."""

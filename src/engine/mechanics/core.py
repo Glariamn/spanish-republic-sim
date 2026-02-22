@@ -13,7 +13,8 @@ from content.initiatives.politics.coalition_crisis import CoalitionCrisisEvent
 from content.initiatives.party.faction_schism import FactionSchismEvent
 from content.events.historical.burning_convents import BurningConventsEvent
 from content.events.system.confidence_vote import ConfidenceVoteEvent
-from content.events.historical.events_1931 import MaciaDeclarationEvent, CardinalSeguraEvent, JuneElectionsEvent, LerrouxExitEvent, Constitution26Event
+from content.events.historical.events_1931 import MaciaDeclarationEvent, CardinalSeguraEvent, JuneElectionsEvent
+from content.events.historical.constitution import LerrouxExitEvent, Constitution26Event
 
 def calculate_outcome(base_chance, modifiers, game_state):
     current_chance = base_chance
@@ -51,8 +52,30 @@ def process_monthly_tick(state):
         state.date['month'] = 1
         state.date['year'] += 1
     
-    expenses = state.economy.get('monthly_expenses_int', 4)
-    state.economy['budget_int'] += (state.economy['tax_revenue_int'] - expenses)
+    # --- DYNAMISCHE WIRTSCHAFT ---
+    # tax_revenue_actual = base_revenue * (industrial_output / 100 ) * (judicial_integrity_mod)
+    # Industrieproduktion (0.5 bis 1.5 Modifikator)
+    industry_mod = 0.5 + (state.economy['industrial_output'] / 100.0)
+
+    # Justiz-Integrität (Korruptions-Malus)
+    # Wenn Integrität < 40, verlierst du bis zu 30% Steuern
+    integrity = state.metrics.get('judicial_integrity', 50)
+    integrity_mod = 1.0 if integrity >= 40 else (0.7 + (integrity / 133.0))
+
+    revenue_actual = state.economy['tax_revenue_int'] * industry_mod * integrity_mod
+
+    # Militärkosten (Basierend auf Offizierszahl)
+    # Jeder Offizier kostet 0.0005 Einheiten (16.000 Offiziere = 8.0 Ausgaben)
+    military_costs = state.military['army_peninsular']['officers'] * 0.0005
+    
+    # Sicherheitskosten bei Unruhe
+    order_penalty = 0
+    if state.metrics['public_order'] < 40:
+        order_penalty = (40 - state.metrics['public_order']) / 5.0 # Max +8.0
+
+    expenses_actual = 4 + military_costs + order_penalty
+    
+    state.economy['budget_int'] += (revenue_actual - expenses_actual)
     
     entropy_msg = apply_entropy(state)
 
@@ -62,7 +85,6 @@ def process_monthly_tick(state):
     if y == 1931:
         if m == 4: historical_id = "1931_macia_declaration"
         elif m == 5: historical_id = "1931_cardinal_segura"
-        elif m == 6: historical_id = "1931_june_elections"
         elif m == 10: historical_id = "1931_lerroux_exit"
             
     if historical_id:
@@ -72,8 +94,10 @@ def process_monthly_tick(state):
     update_voter_sentiment(state)
     
     # 3. Election Check
-    next_el = state.government['next_election_date']
-    if state.date['year'] == next_el['year'] and state.date['month'] == next_el['month']:
+    next_el = state.government.get('next_election_date', {})
+    if 'year' in next_el and 'month' in next_el and state.date['year'] == next_el['year'] and state.date['month'] == next_el['month']:
+        if state.date['year'] == 1931:
+            return "Elections imminent.", None, "1931_june_elections"
         return "Term limit reached.", None, "auto_election_trigger"
 
     # 4. Crisis Check
@@ -104,8 +128,8 @@ def process_monthly_tick(state):
     for event in possible_events:
         if event.should_trigger():
             data = event.get_data()
-            if data.get('id') == "1931_june_elections":
-                 return "Historical Event.", None, "1931_june_elections"
+            #if data.get('id') == "1931_june_elections":
+            #     return "Historical Event.", None, "1931_june_elections"
             triggered_crisis = {"type": "event_trigger", "event_data": data}
             break
 

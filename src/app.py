@@ -6,6 +6,10 @@ import ui.interface as ui
 import engine.deck_engine as deck_sys
 import content.election_events as el_ev
 import content.actions as actions
+import content.events.historical.constitution as const
+
+from engine.mechanics.parliament import resolve_vote
+from content.issue_effects import get_issue_effects
 
 # --- 1. EVENT MAP (Korrigiert auf Klassen) ---
 EVENT_MAP = {
@@ -14,8 +18,8 @@ EVENT_MAP = {
     "1931_macia_declaration": ev31.MaciaDeclarationEvent,
     "1931_cardinal_segura": ev31.CardinalSeguraEvent,
     "1931_june_elections": ev31.JuneElectionsEvent,
-    "1931_lerroux_exit": ev31.LerrouxExitEvent,
-    "1931_constitution_26": ev31.Constitution26Event,
+    "1931_lerroux_exit": const.LerrouxExitEvent,
+    "1931_constitution_26": const.Constitution26Event,
     
     # Sonderfall: Generische Wahlen sind noch eine Funktion in el_ev
     # Das fangen wir unten im Code ab.
@@ -38,6 +42,9 @@ def init_game_state(player_party_id):
     
     st.session_state.parties = copy.deepcopy(gd.PARTIES)
     st.session_state.my_factions = copy.deepcopy(gd.PARTIES[player_party_id].get('factions', {}))
+    st.session_state.REGIONAL_DEMOGRAPHICS = copy.deepcopy(gd.REGIONAL_DEMOGRAPHICS)
+    st.session_state.CONSTITUENCIES_1931 = copy.deepcopy(gd.CONSTITUENCIES_1931)
+    st.session_state.total_seats = sum(st.session_state.parliament['seats'].values())
 
     st.session_state.ministries = copy.deepcopy(gd.MINISTRIES)
     
@@ -53,6 +60,9 @@ def init_game_state(player_party_id):
     st.session_state.selected_card = None
     st.session_state.action_confirmation = None
     st.session_state.event_history = []
+
+    # DEBUG STUFF
+    st.session_state.TARGET_1931 = copy.deepcopy(gd.TARGET_1931)
 
 if 'initialized' not in st.session_state:
     st.session_state.game_active = False
@@ -82,6 +92,10 @@ def apply_effects(effects_dict):
         elif k.startswith("modify_relation"):
             res = mech.modify_party_relation(st.session_state, v.get("source"), v.get("target"), v.get("amount"))
             if res: msg_log += f" | {res}"
+        elif k == "start_pm_nomination":
+            st.session_state.pm_nomination = mech.init_pm_nomination(st.session_state)
+            st.session_state.pm_nomination_active = True
+            st.session_state.current_event_id = None
         elif k == "start_negotiation":
             st.session_state.draft_data = mech.initialize_ministry_draft(st.session_state, st.session_state.government['coalition'])
             st.session_state.negotiation_active = True
@@ -107,7 +121,20 @@ def apply_effects(effects_dict):
             p = v["party"]
             new = v["new_name"]
             st.session_state.parties[p]["name"] = new
-
+        elif k == "trigger_vote":
+            vote_config = {
+                "ideology_target": v["ideology_target"],
+                "modifier": v.get("modifier", 0),
+                "author_party": v.get("author_party")
+            }
+            passed, votes, details = mech.calculate_parliament_vote(st.session_state, {"vote_config": vote_config})
+            st.session_state.vote_result = {'votes': votes, 'details': details}
+            
+            if passed:
+                msg_log += f" | {v['issue']} PASSED in the Cortes."
+                st.session_state.passed_laws.add(v["add_law"])
+            else:
+                msg_log += f" | {v['issue']} FAILED in the Cortes."
             
     return msg_log
 
@@ -122,7 +149,7 @@ else:
     ui.render_sidebar()
     ui.render_government_actions(st.session_state)
     if sum(st.session_state.parliament['seats'].values()) > 0:
-        ui.render_parliament_chart()
+        ui.render_top_overview(st.session_state)
 
     # 1. FEEDBACK SCREEN
     if st.session_state.get('last_outcome_text'):
@@ -182,7 +209,7 @@ else:
             if "election" in curr or curr == "generic_coalition_formation": 
                 ui.render_election_comparison()
             if curr == "1931_june_elections": 
-                ui.render_parliament_chart()
+                ui.render_top_overview(st.session_state)
 
             for idx, c in enumerate(ev_data['choices']):
                 if c.get('requires_party', []) == [] or st.session_state.player_party in c.get('requires_party', []):
@@ -202,7 +229,9 @@ else:
                         if curr == "1931_macia_declaration":
                             next_event = None
                         elif curr == "1931_cardinal_segura":
-                            next_event = "1931_june_elections"
+                            next_event = None
+                        elif curr == "1931_election_night":
+                            next_event = None
 
                         if "trigger_election" not in res.get('effects', {}) and "start_negotiation" not in res.get('effects', {}):
                             st.session_state.current_event_id = next_event
@@ -215,6 +244,145 @@ else:
 
         else:
             st.error(f"Event not found/mapped: {curr}")
+
+    elif st.session_state.get('pm_nomination_active'):
+        nom = st.session_state.pm_nomination
+        candidates = nom['candidates']
+        stage = nom['stage']
+
+        st.markdown("### 👤 Nomination of the Prime Minister")
+        st.caption("President Alcalá-Zamora invites coalition leaders to propose a candidate for *Presidente del Gobierno*.")
+        st.divider()
+
+        # --- STAGE 1: NOMINATE ---
+        if stage == "nominate":
+            st.markdown("**Who should lead the government?**")
+            for i, cand in enumerate(candidates):
+                if cand.get('failed'):
+                    st.markdown(f"~~{cand['name']} ({cand['party_name']}, {cand['seats']} seats)~~ — *Investiture failed*")
+                    continue
+
+                is_player_party = (cand['party'] == st.session_state.player_party)
+                acceptance_color = "🟢" if cand['acceptance'] >= 65 else ("🟡" if cand['acceptance'] >= 45 else "🔴")
+                label = f"{'⭐ ' if i == 0 else ''}**{cand['name']}** — {cand['party_name']} ({cand['seats']} seats) {acceptance_color} {cand['acceptance']}% coalition acceptance"
+                st.markdown(label)
+
+                col1, col2 = st.columns([2, 3])
+                with col1:
+                    btn_label = "Nominate (your candidate)" if is_player_party else f"Support {cand['name']}"
+                    if st.button(btn_label, key=f"nom_{i}"):
+                        nom['chosen'] = cand
+                        nom['player_supported'] = cand['party']
+                        nom['stage'] = "concessions"
+                        st.rerun()
+                with col2:
+                    if not is_player_party:
+                        st.caption(f"Supporting {cand['party_name']}'s candidate will improve relations (+12).")
+                st.markdown("")
+
+        # --- STAGE 2: CONCESSIONS ---
+        elif stage == "concessions":
+            chosen = nom['chosen']
+            wavering = mech.get_wavering_parties(st.session_state, chosen['party'])
+            
+            st.markdown(f"**Candidate: {chosen['name']} ({chosen['party_name']})**")
+            st.markdown(f"Coalition acceptance: **{chosen['acceptance']}%**")
+
+            if wavering:
+                st.markdown("The following parties are **on the fence**. You may offer them a ministry to secure their vote.")
+                for w in wavering:
+                    already_conceded = w['party'] in nom['concession_parties']
+                    col1, col2 = st.columns([3, 2])
+                    with col1:
+                        status = "✅ Concession offered" if already_conceded else f"Relation to candidate: {w['relation']}/100"
+                        st.markdown(f"<span style='color:{w['color']}'>■</span> **{w['party_name']}** ({w['seats']} seats) — {status}", unsafe_allow_html=True)
+                    with col2:
+                        if not already_conceded:
+                            if st.button(f"Offer ministry to {w['party_name']}", key=f"con_{w['party']}"):
+                                nom['concession_parties'].append(w['party'])
+                                st.rerun()
+            else:
+                st.info("No wavering parties — the coalition is broadly behind this candidate.")
+
+            st.divider()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Proceed to Investiture Vote", type="primary"):
+                    nom['stage'] = "vote"
+                    st.rerun()
+            with col2:
+                if st.button("← Change Candidate"):
+                    nom['stage'] = "nominate"
+                    nom['chosen'] = None
+                    nom['concession_parties'] = []
+                    st.rerun()
+
+        # --- STAGE 3: VOTE ---
+        elif stage == "vote":
+            chosen = nom['chosen']
+            if nom['vote_result'] is None:
+                passed, for_votes, against_votes, details = mech.simulate_investiture_vote(
+                    st.session_state, chosen['party'],
+                    concession_parties=nom['concession_parties'],
+                    player_supporting=True
+                )
+                nom['vote_result'] = {
+                    'passed': passed, 'for': for_votes, 'against': against_votes, 'details': details
+                }
+                # Apply relation effects based on nomination choice
+                mech.apply_nomination_relation_effects(
+                    st.session_state, chosen['party'], nom['player_supported']
+                )
+                st.rerun()
+            else:
+                result = nom['vote_result']
+                if result['passed']:
+                    st.success(f"✅ **{chosen['name']} confirmed as Presidente del Gobierno** — {result['for']} for, {result['against']} against")
+                else:
+                    st.error(f"❌ **Investiture failed** — {result['for']} for, {result['against']} against")
+
+                with st.expander("Vote breakdown"):
+                    for d in result['details']:
+                        label = "🏛️" if d['in_coalition'] else "⚖️"
+                        st.markdown(f"<span style='color:{d['color']}'>■</span> {label} {d['party']}: {d['yeas']}Y / {d['nays']}N", unsafe_allow_html=True)
+
+                if result['passed']:
+                    if st.button("Confirm & Begin Cabinet Formation", type="primary"):
+                        # Assign PM to ministries
+                        if 'prime_minister' in st.session_state.ministries:
+                            pm_candidates = gd.PARTY_MINISTERS.get(chosen['party'], {}).get('prime_minister', ["Party Leader"])
+                            st.session_state.ministries['prime_minister']['party'] = chosen['party']
+                            st.session_state.ministries['prime_minister']['holder'] = pm_candidates[0]
+                        # Concession promises: set aside those ministries for the promised parties
+                        for p in nom['concession_parties']:
+                            # Flag them in draft so they get early pick
+                            if 'concession_promises' not in st.session_state:
+                                st.session_state.concession_promises = {}
+                            st.session_state.concession_promises[p] = True
+                        # Start ministry draft (excluding PM)
+                        draft = mech.initialize_ministry_draft(st.session_state, st.session_state.government['coalition'])
+                        # Remove prime_minister from draft if it snuck back in
+                        if 'prime_minister' in draft['available']:
+                            draft['available'].remove('prime_minister')
+                        st.session_state.draft_data = draft
+                        st.session_state.pm_nomination_active = False
+                        st.session_state.negotiation_active = True
+                        st.rerun()
+                else:
+                    if st.button("Try Another Candidate"):
+                        # Mark this candidate as failed, reset vote
+                        for c in nom['candidates']:
+                            if c['party'] == chosen['party']:
+                                c['failed'] = True
+                        nom['chosen'] = None
+                        nom['concession_parties'] = []
+                        nom['vote_result'] = None
+                        nom['attempts'] += 1
+                        nom['stage'] = "nominate"
+                        # Relations hit: coalition instability from failed investiture
+                        st.session_state.metrics['coalition_stability'] -= 10
+                        st.rerun()
+
 
     # 4. MINISTRY NEGOTIATION
     elif st.session_state.get('negotiation_active'):

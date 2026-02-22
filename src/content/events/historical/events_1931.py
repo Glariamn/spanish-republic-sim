@@ -233,8 +233,8 @@ class CardinalSeguraEvent(GameEvent):
 class JuneElectionsEvent(GameEvent):
     def should_trigger(self):
         # Trigger über das Wahldatum
-        next_el = self.state.government['next_election_date']
-        return self.state.date['year'] == next_el['year'] and self.state.date['month'] == next_el['month']
+        next_el = self.state.government.get('next_election_date', {})
+        return self.state.date.get('year') == next_el.get('year') and self.state.date.get('month') == next_el.get('month')
     
     def get_data(self):
         return {
@@ -253,129 +253,6 @@ class JuneElectionsEvent(GameEvent):
                         "effects": {
                             "trigger_election": True, 
                             "public_order": 5 
-                        }
-                    }
-                }
-            ]
-        }
-
-class LerrouxExitEvent(GameEvent):
-    def should_trigger(self):
-        is_date = self.state.date['year'] == 1931 and self.state.date['month'] == 10
-        # Bedingung: Lerroux' Partei (PRR) muss überhaupt in der Regierung sein!
-        is_in_gov = gd.PARTY_PRR in self.state.government['coalition']
-        return is_date and is_in_gov
-    
-    def get_data(self):
-        return {
-            "id": "1931_lerroux_exit",
-            "title": "The Radical Rupture",
-            "date_str": "Oktober 1931",
-            "text": """
-            **The Coalition is fracturing.**
-            
-            Alejandro Lerroux and his Radical Republican Party (PRR) can no longer support the government. 
-            They cite the "excessive influence of the Socialists" and the aggressive anti-clerical articles in the new Constitution (Article 26).
-            
-            Lerroux demands that the Socialists (PSOE) leave the government, or he will.
-            """,
-            "choices": [
-                {
-                    "text": "Let Lerroux go. Keep the Socialists.",
-                    "tooltip": "Historical Choice. Maintains the Left-Wing coalition but loses the Center.",
-                    "success": {
-                        "msg": "Lerroux resigns. The Radicals move to the opposition, joining the right-wing obstruction.",
-                        "effects": {
-                            "remove_party": gd.PARTY_PRR,
-                            "coalition_stability": -15, 
-                            "modify_faction": {"tag": "left", "amount": -10}, 
-                            "demographic_shift": {
-                                "group": "bourgeoisie",
-                                # HIER WAR DER FEHLER: state.player_party -> self.state.player_party
-                                "changes": {gd.PARTY_PRR: 0.05, self.state.player_party: -0.05}
-                            }
-                        }
-                    }
-                },
-                {
-                    "text": "Dump the Socialists to keep Lerroux.",
-                    "tooltip": "A massive betrayal. Will cause a General Strike.",
-                    "requires_party": [gd.PARTY_AR, gd.PARTY_DLR], 
-                    "success": {
-                        "msg": "You break ties with the PSOE. Lerroux stays, but the streets are on fire.",
-                        "effects": {
-                            "remove_party": gd.PARTY_PSOE,
-                            "coalition_stability": 10, 
-                            "public_order": -30, 
-                            "demographic_shift": {
-                                "group": "workers_urban",
-                                # HIER EBENFALLS: self.state.player_party
-                                "changes": {gd.PARTY_PSOE: 0.10, self.state.player_party: -0.10}
-                            }
-                        }
-                    }
-                }
-            ]
-        }
-class Constitution26Event(GameEvent):
-    def should_trigger(self):
-        is_date = self.state.date['year'] == 1931 and self.state.date['month'] == 10
-        # Bedingung: Lerroux' Partei (PRR) muss überhaupt in der Regierung sein!
-        is_in_gov = gd.PARTY_PRR in self.state.government['coalition']
-        return is_date and is_in_gov
-    
-    def get_data(self):
-        return {
-            "id": "1931_constitution_26",
-            "title": "The Religious Question (Article 26)",
-            "date_str": "Oktober 1931",
-            "text": """
-            **The Constitution is being drafted.**
-            
-            The debate has reached **Article 26**, which proposes:
-            1. Complete separation of Church and State.
-            2. Banning Jesuits.
-            3. Ending state payment of priests.
-            
-            The Conservative Republicans (**DLR**) and Radicals (**PRR**) warn this is "political suicide". 
-            The Socialists (**PSOE**) and your own Left-Republicans (**AR**) demand a secular state now.
-            
-            Prime Minister Alcalá-Zamora (DLR) threatens to resign if this passes.
-            """,
-            "choices": [
-                {
-                    "text": "Push Article 26 fully! (Secular State)",
-                    "tooltip": "Historic Path. Azaña's famous speech: 'Spain has ceased to be Catholic'.",
-                    "success": {
-                        "msg": "The Article passes! Alcalá-Zamora and Maura resign in protest. Azaña must lead.",
-                        "effects": {
-                            # DLR (Rechts-Republikaner) verlassen die Regierung
-                            "remove_party": gd.PARTY_DLR,
-                            
-                            "modify_relation": {"source": gd.PARTY_DLR, "target": gd.PARTY_AR, "amount": -30},
-                            "modify_relation_2": {"source": gd.PARTY_PRR, "target": gd.PARTY_AR, "amount": -15}, # Hack für 2. Relation
-                            "coalition_stability": 10,
-                            
-                            "society": {"clergy": -40, "aristocracy": -20, "workers_urban": 15},
-                            "modify_faction": {"tag": "left", "amount": -20}, 
-                            
-                            "transfer_ministry": gd.PARTY_DLR # Deren Ministerien werden frei/verteilt
-                        }
-                    }
-                },
-                {
-                    "text": "Compromise to save the Coalition.",
-                    "tooltip": "Water down the article. Keeps DLR, but enrages the Socialists.",
-                    "success": {
-                        "msg": "We dilute the text. The Church keeps some privileges. The Socialists feel betrayed.",
-                        "effects": {
-                            "coalition_stability": 5, 
-                            "modify_relation": {"source": gd.PARTY_PSOE, "target": gd.PARTY_AR, "amount": -25},
-                            "modify_faction": {"tag": "left", "amount": 30}, 
-                            "demographic_shift": {
-                                "group": "workers_urban",
-                                "changes": {gd.PARTY_PSOE: -0.05, gd.PARTY_PCE: 0.03} 
-                            }
                         }
                     }
                 }

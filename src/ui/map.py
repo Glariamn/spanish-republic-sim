@@ -127,12 +127,16 @@ def strongest_party_per_province(state):
 # ---------------------------------------------------------
 # 3. Karte zeichnen
 # ---------------------------------------------------------
-
 def draw_spain_map(df):
     geo = load_geojson("spain_provinces.geojson")
 
     chart = (
-        alt.Chart(alt.Data(values=geo["features"]))
+        alt.Chart(
+            alt.Data(
+                values=geo["features"],
+                format={"type": "json"}
+            )
+        )
         .mark_geoshape(stroke="black", strokeWidth=0.2)
         .encode(
             color=alt.Color(
@@ -154,6 +158,8 @@ def draw_spain_map(df):
     )
 
     return chart
+
+
 
 # ---------------------------------------------------------
 # 4. Streamlit UI
@@ -194,7 +200,12 @@ def draw_intensity_map(df):
     geo = load_geojson("spain_provinces.geojson")
 
     chart = (
-        alt.Chart(alt.Data(values=geo["features"]))
+        alt.Chart(
+            alt.Data(
+                values=geo["features"],
+                format={"type": "json"}
+            )
+        )
         .mark_geoshape(stroke="black", strokeWidth=0.2)
         .encode(
             color=alt.Color(

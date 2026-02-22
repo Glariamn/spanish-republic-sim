@@ -38,7 +38,7 @@ def vacate_ministry(state, ministry_key):
     return False
 
 def transfer_ministry_to_partner(state, target_party_id):
-    my_mins = [k for k, m in state.ministries.items() if m['party'] == state.player_party and k != "president"]
+    my_mins = [k for k, m in state.ministries.items() if m['party'] == state.player_party and k != "prime_minister"]
     if not my_mins: return None
     key = random.choice(my_mins)
     state.ministries[key]['party'] = target_party_id
@@ -66,33 +66,60 @@ def get_coalition_options(state):
     return possible
 
 def initialize_ministry_draft(state, coalition_partners):
+    coalition_seats = sum(state.parliament["seats"].get(p, 0) for p in coalition_partners)
+    SEAT_THRESHOLD = max(5, int(coalition_seats * 0.08))
+
+    pre_assignments = {}
+    available = list(state.ministries.keys())
+
+    # --- 1. PRESIDENTE DE LA REPÚBLICA (Head of State) ---
+    # Pre-assigned to DLR (Alcalá-Zamora). Non-partisan role, never enters the draft.
+    if gd.PARTY_DLR in coalition_partners and "president_republic" in available:
+        candidates = gd.PARTY_MINISTERS.get(gd.PARTY_DLR, {}).get("president_republic", ["Niceto Alcalá-Zamora"])
+        pre_assignments["president_republic"] = {"party": gd.PARTY_DLR, "holder": candidates[0]}
+        available.remove("president_republic")
+    
+    # --- 2. MINISTROS (Ministers) ---
+    def qualifies(p):
+        if p == state.player_party: return True
+        if p not in gd.PARTY_MINISTERS: return False
+        if p == gd.PARTY_DLR: return False  # Already handled via pre-assignment
+        return state.parliament["seats"].get(p, 0) >= SEAT_THRESHOLD
+    
+    major_partners = [p for p in coalition_partners if qualifies(p)]
+
+    # --- 3. DRAFT ORDER: by seats, weighted by coalition relations ---
     scores = []
-    for p in coalition_partners:
+    for p in major_partners:
         p_data = gd.PARTIES.get(p, gd.PARTIES["others"])
-        rel_sum = 0
-        others_count = 0
-        for other in coalition_partners:
-            if other == p: continue
-            rel = p_data.get('relations', {}).get(other, 50)
-            rel_sum += rel
-            others_count += 1
-        avg_rel = rel_sum / max(1, others_count)
-        seat_bonus = state.parliament['seats'].get(p, 0) / 5
-        scores.append({'party': p, 'score': avg_rel + seat_bonus})
-        
-    sorted_parties = sorted(scores, key=lambda x: x['score'], reverse=True)
-    draft_order = [x['party'] for x in sorted_parties]
+        rel_sum = sum(p_data.get("relations", {}).get(other, 50)
+                      for other in major_partners if other != p)
+        avg_rel = rel_sum / max(1, len(major_partners) - 1)
+        seat_share = state.parliament["seats"].get(p, 0) / max(1, coalition_seats)
+        scores.append({"party": p, "score": avg_rel + (seat_share * 100)})
+
+    sorted_parties = sorted(scores, key=lambda x: x["score"], reverse=True)
+    draft_order = [x["party"] for x in sorted_parties]
     
     return {
         "order": draft_order, "current_index": 0, "round": 1,
-        "available": list(state.ministries.keys()), 
-        "assignments": {}, "finished": False
+        "available": available,
+        "assignments": pre_assignments, "finished": False
     }
 
 def ai_pick_ministry(state, party_id, available_keys):
-    preferences = gd.PARTY_MINISTERS.get(party_id, {}).keys()
+    party_data = state.parties.get(party_id, {})
+    preferences = party_data.get("preferred_portfolios", [])
     wanted = [k for k in preferences if k in available_keys]
-    picked_key = wanted[0] if wanted else (available_keys[0] if available_keys else None)
+    picked_key = None
+    if wanted:
+        picked_key = wanted[0]
+    else:
+        priority = ['interior', 'war', 'finance', 'state', 'labor', 'agriculture', 'justice']
+        for p in priority:
+            if p in available_keys:
+                picked_key = p
+                break
     
     if not picked_key: return None, None
         

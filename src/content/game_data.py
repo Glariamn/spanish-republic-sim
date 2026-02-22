@@ -8,7 +8,7 @@ PARTY_PRR  = "radicals"      # Partido Republicano Radical (Lerroux)
 PARTY_DLR  = "right_rep"     # Derechos Laborales (Derechos Humanos)
 PARTY_PRRS = "rad_socialists"# Partido Rep. Radical Socialista (Linksliberale)
 
-# Others
+# Named Parties
 PARTY_CEDA = "ceda"          # Confederación de Derechos Autónomas (Gil-Robles) - Sammelbecken ab 1933
 PARTY_PCE  = "communist"     # Partido Comunista Español
 PARTY_CNT  = "anarchist"     # Confederación Nacional de Trabajadores - Non-voters
@@ -18,6 +18,15 @@ PARTY_LLIGA= "lliga"         # Lliga Regionalista
 PARTY_PNV  = "pnv"           # Partido Nacionalista Vasco
 PARTY_MON  = "monarchists"   # Renovación Española (Alfonsinos/Carlisten)
 PARTY_PA   = "agrarian"      # Partido Agrario Español (Generisch, für Koalitionen)
+
+# Others (Minor Parties)
+PARTY_MARXIST_OTHER = "marxist_other"
+PARTY_LEFT_REP_OTHER = "left_republican_other"
+PARTY_CENTRE_REP_OTHER = "centre_republican_other"
+PARTY_RIGHT_REP_OTHER = "right_republican_other"
+PARTY_CATHOLIC_OTHER = "catholic_other"
+PARTY_FAR_RIGHT_OTHER = "far_right_other"
+PARTY_REGIONALIST_OTHER = "regionalist_other"
 
 # Organisationen
 UGT = "ugt"                  # Gewerkschaft der Sozialisten
@@ -32,7 +41,13 @@ ATENEOS = "ateneos"          # Intelligentia clubs
 # --- 2. THE MINISTRIES (Power Centers) ---
 # Historical Cabinet of the Provisional Government (April 1931)
 MINISTRIES = {
-    "president": {
+    "president_republic": {
+        "name": "Presidente",
+        "holder": "Vacant (Interim)",
+        "party": PARTY_DLR,
+        "desc": "President of the Republic."
+    },
+    "prime_minister": {
         "name": "Presidente del Gobierno",
         "holder": "Niceto Alcalá-Zamora",
         "party": PARTY_DLR,
@@ -87,7 +102,7 @@ PARTIES = {
         "ideology_index": 1,     # Für Sortierung (Links)
         "funds_int": 8,          
         "members": 300000,
-        "institutionalization": 80,
+        "institutionalization": 48, # Abstrahierung weil sonst zu dominant
         "factions": {
             "psoe_reformist": {
                 "name": "Besteiristas", 
@@ -122,7 +137,8 @@ PARTIES = {
             PARTY_FAL: 0,
             "church": 5,
             "army": 10
-        }
+        },
+        "preferred_portfolios": [ "labor", "finance", "justice" ]
     },
     
     PARTY_AR: {
@@ -132,7 +148,7 @@ PARTIES = {
         "ideology_index": 3,     # Mitte-Links
         "funds_int": 3,
         "members": 5000,
-        "institutionalization": 40,
+        "institutionalization": 85,
         "factions": {
             "ar_intellectuals": {
                 "name": "Ateneístas", 
@@ -161,7 +177,8 @@ PARTIES = {
             PARTY_FAL: 0,
             "church": 10,
             "army": 30
-        }
+        },
+        "preferred_portfolios": [ "war", "president", "state"]
     },
     
     PARTY_DLR: {
@@ -190,17 +207,18 @@ PARTIES = {
             PARTY_PSOE: 25,
             "church": 60,
             "army": 60
-        }
+        },
+        "preferred_portfolios": [ "president", "interior" ]
     },
     
     PARTY_PRR: { 
         "name": "Radicals (PRR)",
         "full_name": "Partido Republicano Radical",
-        "color": "#571D51",      # Dark Purple
+        "color": "#1C1845",      # Dark Purple
         "ideology_index": 5,     # Centre-Right
         "funds_int": 7,
         "members": 100000,
-        "institutionalization": 75,
+        "institutionalization": 58,
         "factions": {
             "prr_lerrouxistas": {
                 "name": "Lerrouxistas",
@@ -227,7 +245,8 @@ PARTIES = {
             PARTY_DLR: 50,
             "church": 40,
             "army": 50
-        }
+        },
+        "preferred_portfolios": [ "state", "interior", "finance" ]
     },
 
     PARTY_PRRS: {
@@ -237,7 +256,7 @@ PARTIES = {
         "ideology_index": 2,     # Links-Liberal
         "funds_int": 3,
         "members": 40000,
-        "institutionalization": 45,
+        "institutionalization": 60,
         "factions": {
             "prrs_radicals": {
                 "name": "Izquierdistas",
@@ -258,7 +277,8 @@ PARTIES = {
                 "tag": ["center", "regionalist"]
             }
         },
-        "relations": {PARTY_AR: 80, PARTY_PSOE: 60}
+        "relations": {PARTY_AR: 80, PARTY_PSOE: 60},
+        "preferred_portfolios": [ "agriculture", "state" ]
     },
 
     # --- DIE OPPOSITION / ANDERE PARTEIEN (Wichtig für Wahlergebnisse) ---
@@ -285,7 +305,8 @@ PARTIES = {
                 "tag": ["left", "anticlerical", "radical"]
             }
         },
-        "relations": {PARTY_PSOE: 10} # Kritisch gegenüber Sozialdemokraten
+        "relations": {PARTY_PSOE: 10}, # Kritisch gegenüber Sozialdemokraten
+        "preferred_portfolios": [ "war ", "interior" ]
     },
     
     PARTY_ERC: {
@@ -295,7 +316,7 @@ PARTIES = {
         "ideology_index": 2.5,   # Links-Regional
         "funds_int": 5,
         "members": 15000, # Sehr stark in Katalonien
-        "institutionalization": 60,
+        "institutionalization": 65,
         "factions": {
             "erc_macia": {
                 "name": "Macià faction",
@@ -361,7 +382,7 @@ PARTIES = {
         "ideology_index": 7.5,   # Konservativ-Katalanisch
         "funds_int": 10,         # Sehr reich (Industrielle)
         "members": 20000,
-        "institutionalization": 75,
+        "institutionalization": 45,
         "factions": {
             "lliga_industrialists": {
                 "name": "Cambonistas",
@@ -514,42 +535,88 @@ PARTIES = {
         "relations": {}
     },
 
-    "subparties": {
-        "marxist_other": {
-            "name": "Marxist Left",
-            "ideology_index": 1,
-            "institutionalization": 5
-        },
-        "left_republican_other": {
-            "name": "Left Republican Bloc",
-            "ideology_index": 3,
-            "institutionalization": 10
-        },
-        "centre_republican_other": {
-            "name": "Republican Centre",
-            "ideology_index": 5,
-            "institutionalization": 10
-        },
-        "right_republican_other": {
-            "name": "Conservative Republicans",
-            "ideology_index": 7,
-            "institutionalization": 10
-        },
-        "catholic_other": {
-            "name": "Catholic Independents",
-            "ideology_index": 8,
-            "institutionalization": 5
-        },
-        "far_right_other": {
-            "name": "Far-Right Independents",
-            "ideology_index": 9,
-            "institutionalization": 5
-        },
-        "regionalist_other": {
-            "name": "Regionalist Independents",
-            "ideology_index": 4,
-            "institutionalization": 5
-        }
+    PARTY_MARXIST_OTHER: {
+        "name": "Marxist Left",
+        "full_name": "Marxist and Left-Socialist Independents",
+        "color": "#AA0000",
+        "ideology_index": 1,
+        "funds_int": 3,
+        "members": 15000,
+        "institutionalization": 5,
+        "factions": {},
+        "relations": {}
+    },
+
+    PARTY_LEFT_REP_OTHER: {
+        "name": "Left Republican Bloc",
+        "full_name": "Independent Left Republicans",
+        "color": "#CC4444",
+        "ideology_index": 3,
+        "funds_int": 5,
+        "members": 20000,
+        "institutionalization": 60,
+        "factions": {},
+        "relations": {}
+    },
+
+    PARTY_CENTRE_REP_OTHER: {
+        "name": "Republican Centre",
+        "full_name": "Independent Moderate Republicans",
+        "color": "#DD8844",
+        "ideology_index": 5,
+        "funds_int": 8,
+        "members": 15000,
+        "institutionalization": 40,
+        "factions": {},
+        "relations": {}
+    },
+
+    PARTY_RIGHT_REP_OTHER: {
+        "name": "Conservative Republicans",
+        "full_name": "Independent Conservative Republicans",
+        "color": "#8888AA",
+        "ideology_index": 7,
+        "funds_int": 10,
+        "members": 12000,
+        "institutionalization": 50,
+        "factions": {},
+        "relations": {}
+    },
+
+    PARTY_CATHOLIC_OTHER: {
+        "name": "Catholic Independents",
+        "full_name": "Catholic and Local Conservative Independents",
+        "color": "#AA8844",
+        "ideology_index": 8,
+        "funds_int": 6,
+        "members": 18000,
+        "institutionalization": 35,
+        "factions": {},
+        "relations": {}
+    },
+
+    PARTY_FAR_RIGHT_OTHER: {
+        "name": "Far-Right Independents",
+        "full_name": "Local Far-Right and Monarchist Independents",
+        "color": "#444466",
+        "ideology_index": 9,
+        "funds_int": 4,
+        "members": 8000,
+        "institutionalization": 10,
+        "factions": {},
+        "relations": {}
+    },
+
+    PARTY_REGIONALIST_OTHER: {
+        "name": "Regionalist Independents",
+        "full_name": "Independent Regionalist and Localist Groups",
+        "color": "#66AA88",
+        "ideology_index": 4,
+        "funds_int": 7,
+        "members": 25000,
+        "institutionalization": 75,
+        "factions": {},
+        "relations": {}
     },
     
     # Fallback
@@ -576,7 +643,7 @@ CONSTITUENCIES_1931 = [
     {"id":"lugo","name":"Lugo","seats":10,"region":"galicia_rural"},
 
     # Asturias / Cantabria -> eher altkastilisch + Küste
-    {"id":"oviedo","name":"Oviedo","seats":16,"region":"castilla_old_core"},
+    {"id":"oviedo","name":"Oviedo","seats":16,"region":"asturias_mining"},
     {"id":"santander","name":"Santander","seats":7,"region":"castilla_old_core"},
 
     # Castilla y León
@@ -598,10 +665,10 @@ CONSTITUENCIES_1931 = [
     {"id":"navarra","name":"Navarra","seats":7,"region":"pais_vasco_rural"},
 
     # Aragón
-    {"id":"zaragoza_cap","name":"Zaragoza (capital)","seats":4,"region":"castilla_old_core"},
-    {"id":"zaragoza_prov","name":"Zaragoza provincia","seats":7,"region":"castilla_old_core"},
-    {"id":"huesca","name":"Huesca","seats":5,"region":"castilla_old_core"},
-    {"id":"teruel","name":"Teruel","seats":4,"region":"castilla_old_core"},
+    {"id":"zaragoza_cap","name":"Zaragoza (capital)","seats":4,"region":"aragon_mixed"},
+    {"id":"zaragoza_prov","name":"Zaragoza provincia","seats":7,"region":"aragon_mixed"},
+    {"id":"huesca","name":"Huesca","seats":5,"region":"aragon_mixed"},
+    {"id":"teruel","name":"Teruel","seats":4,"region":"aragon_mixed"},
 
     # Catalunya
     {"id":"lleida","name":"Lleida","seats":6,"region":"catalonia_rural"},
@@ -639,15 +706,15 @@ CONSTITUENCIES_1931 = [
     {"id":"caceres","name":"Cáceres","seats":7,"region":"extremadura_latifundio"},
 
     # Andalucía
-    {"id":"sevilla_cap","name":"Sevilla (capital)","seats":4,"region":"andalucia_mixed"},
+    {"id":"sevilla_cap","name":"Sevilla (capital)","seats":4,"region":"andalucia_urban"},
     {"id":"sevilla_prov","name":"Sevilla provincia","seats":8,"region":"andalucia_latifundio"},
     {"id":"cordoba","name":"Córdoba","seats":8,"region":"andalucia_latifundio"},
     {"id":"jaen","name":"Jaén","seats":9,"region":"andalucia_latifundio"},
-    {"id":"granada_cap","name":"Granada (capital)","seats":2,"region":"andalucia_mixed"},
+    {"id":"granada_cap","name":"Granada (capital)","seats":2,"region":"andalucia_urban"},
     {"id":"granada_prov","name":"Granada provincia","seats":7,"region":"andalucia_latifundio"},
-    {"id":"malaga_cap","name":"Málaga (capital)","seats":3,"region":"andalucia_mixed"},
+    {"id":"malaga_cap","name":"Málaga (capital)","seats":3,"region":"andalucia_urban"},
     {"id":"malaga_prov","name":"Málaga provincia","seats":6,"region":"andalucia_latifundio"},
-    {"id":"cadiz","name":"Cádiz","seats":8,"region":"andalucia_mixed"},
+    {"id":"cadiz","name":"Cádiz","seats":8,"region":"andalucia_urban"},
     {"id":"huelva","name":"Huelva","seats":5,"region":"andalucia_latifundio"},
     {"id":"almeria","name":"Almería","seats":5,"region":"andalucia_latifundio"},
 
@@ -660,7 +727,6 @@ CONSTITUENCIES_1931 = [
     # La Rioja
     {"id":"la_rioja","name":"La Rioja (Logroño)","seats":3,"region":"la_rioja_smallholder"}
 ]
-
 
 REGION_MODIFIERS = {
     "catalonia_urban": {
@@ -683,7 +749,7 @@ REGION_MODIFIERS = {
         "workers_rural": 1.35,
         "aristocracy": 1.15
     },
-    "andalucia_mixed": {
+    "andalucia_urban": {
         "workers_rural": 1.20,
         "workers_urban": 1.10
     },
@@ -715,6 +781,14 @@ REGION_MODIFIERS = {
     "la_rioja_smallholder": {
         "workers_rural": 1.10,
         "bourgeoisie": 1.05
+    },
+    "asturias_mining": {
+        "workers_urban": 1.40, # Bergarbeiter
+        "bourgeoisie": 0.80    # Schwaches Bürgertum
+    },
+    "aragon_mixed": {
+        "workers_rural": 1.10,
+        "bourgeoisie": 1.10
     }
 }
 
@@ -723,461 +797,546 @@ REGIONAL_DEMOGRAPHICS = {
     # --- GALICIA (katholisch, konservativ, ländlich) ---
     "galicia_rural": {
         "aristocracy": {
-            PARTY_MON: 0.50, PARTY_DLR: 0.30, PARTY_CEDA: 0.15, PARTY_PRR: 0.05,
-            "catholic_other": 0.05, "right_republican_other": 0.05
+            PARTY_MON: 0.30, PARTY_DLR: 0.25, PARTY_CEDA: 0.15, PARTY_PRR: 0.15,
+            "catholic_other": 0.05, "regionalist_other": 0.20
         },
         "clergy": {
-            PARTY_DLR: 0.45, PARTY_CEDA: 0.35, PARTY_MON: 0.15, PARTY_PNV: 0.05,
-            "catholic_other": 0.10
+            PARTY_DLR: 0.35, PARTY_CEDA: 0.25, PARTY_MON: 0.20, PARTY_PNV: 0.05,
+            "catholic_other": 0.15
         },
         "bourgeoisie": {
-            PARTY_PRR: 0.40, PARTY_DLR: 0.30, PARTY_CEDA: 0.20, PARTY_AR: 0.10,
-            "centre_republican_other": 0.05, "right_republican_other": 0.05
+            "regionalist_other": 0.60,
+            PARTY_DLR: 0.20,
+            PARTY_AR: 0.10,
+            PARTY_PRR: 0.10
         },
         "workers_urban": {
-            PARTY_PSOE: 0.35, PARTY_PRR: 0.30, PARTY_PRRS: 0.20, PARTY_PCE: 0.05, PARTY_AR: 0.10,
-            "left_republican_other": 0.05, "marxist_other": 0.02
+            PARTY_PSOE: 0.25, PARTY_PRR: 0.20, PARTY_PRRS: 0.10, PARTY_PCE: 0.05, PARTY_AR: 0.10,
+            "left_republican_other": 0.15, "regionalist_other": 0.30
         },
         "workers_rural": {
-            PARTY_CEDA: 0.30, PARTY_PRRS: 0.25, PARTY_PSOE: 0.25, PARTY_MON: 0.10, PARTY_CNT: 0.10,
-            "catholic_other": 0.05, "left_republican_other": 0.05
+            "regionalist_other": 0.50,
+            PARTY_PRRS: 0.05, PARTY_PSOE: 0.15, PARTY_MON: 0.10, PARTY_CNT: 0.10,
+            "catholic_other": 0.05
         },
         "soldiers": {
-            PARTY_PRR: 0.45, PARTY_PSOE: 0.25, PARTY_AR: 0.20, PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
+            "regionalist_other": 0.35, PARTY_PRR: 0.30, PARTY_PSOE: 0.20,PARTY_AR: 0.15
         }
     },
+
+    # In REGIONAL_DEMOGRAPHICS["castilla_old_core"] in src/content/game_data.py
 
     "castilla_old_core": {
         "aristocracy": {
-            PARTY_MON: 0.45,
-            PARTY_DLR: 0.30,
-            PARTY_CEDA: 0.15,
-            PARTY_PRR: 0.10
-        },
-        "clergy": {
-            PARTY_DLR: 0.40,
-            PARTY_CEDA: 0.35,
-            PARTY_MON: 0.20,
-            PARTY_AR: 0.05
-        },
-        "bourgeoisie": {
-            PARTY_PRR: 0.45,
-            PARTY_DLR: 0.25,
-            PARTY_AR: 0.15,
-            PARTY_PSOE: 0.10,
-            PARTY_CEDA: 0.05
-        },
-        "workers_urban": {
-            PARTY_PSOE: 0.40,
-            PARTY_PRR: 0.25,
-            PARTY_PRRS: 0.20,
-            PARTY_PCE: 0.10,
-            PARTY_AR: 0.05
-        },
-        "workers_rural": {
-            PARTY_PSOE: 0.30,
-            PARTY_PRRS: 0.25,
-            PARTY_CEDA: 0.20,
-            PARTY_DLR: 0.15,
-            PARTY_MON: 0.10
-        },
-        "soldiers": {
-            PARTY_PRR: 0.45,
-            PARTY_PSOE: 0.25,
-            PARTY_AR: 0.20,
-            PARTY_PCE: 0.10
-        }
-    },
-
-    # --- PAÍS VASCO (katholisch, PNV stark) ---
-    "pais_vasco_rural": {
-        "aristocracy": {
-            PARTY_MON: 0.20, PARTY_DLR: 0.20, PARTY_CEDA: 0.20, PARTY_PNV: 0.40,
-            "catholic_other": 0.05
-        },
-        "clergy": {
-            PARTY_PNV: 0.60, PARTY_CEDA: 0.25, PARTY_DLR: 0.10, PARTY_MON: 0.05,
-            "catholic_other": 0.10
-        },
-        "bourgeoisie": {
-            PARTY_PNV: 0.40, PARTY_PRR: 0.25, PARTY_DLR: 0.20, PARTY_AR: 0.15,
-            "right_republican_other": 0.05
-        },
-        "workers_urban": {
-            PARTY_PSOE: 0.40, PARTY_PNV: 0.20, PARTY_PRR: 0.20, PARTY_PCE: 0.10, PARTY_AR: 0.10,
-            "left_republican_other": 0.05
-        },
-        "workers_rural": {
-            PARTY_PNV: 0.40, PARTY_CEDA: 0.25, PARTY_PRRS: 0.15, PARTY_PSOE: 0.10, PARTY_CNT: 0.10,
-            "catholic_other": 0.05
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40, PARTY_PSOE: 0.30, PARTY_AR: 0.20, PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
-        }
-    },
-
-    "pais_vasco_industrial": {
-        "aristocracy": {
-            PARTY_PNV: 0.40, PARTY_DLR: 0.30, PARTY_CEDA: 0.20, PARTY_PRR: 0.10,
-            "catholic_other": 0.05
-        },
-        "clergy": {
-            PARTY_PNV: 0.50, PARTY_CEDA: 0.30, PARTY_DLR: 0.15, PARTY_MON: 0.05,
-            "catholic_other": 0.10
-        },
-        "bourgeoisie": {
-            PARTY_PNV: 0.35, PARTY_PRR: 0.30, PARTY_AR: 0.20, PARTY_DLR: 0.15,
-            "centre_republican_other": 0.05
-        },
-        "workers_urban": {
-            PARTY_PSOE: 0.45, PARTY_PNV: 0.20, PARTY_PRR: 0.15, PARTY_PCE: 0.10, PARTY_AR: 0.10,
-            "left_republican_other": 0.05, "marxist_other": 0.03
-        },
-        "workers_rural": {
-            PARTY_PNV: 0.35, PARTY_CEDA: 0.25, PARTY_PRRS: 0.20, PARTY_PSOE: 0.10, PARTY_CNT: 0.10,
-            "catholic_other": 0.05
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40, PARTY_PSOE: 0.30, PARTY_AR: 0.20, PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
-        }
-    },
-
-    # --- CATALONIA URBAN ---
-    "catalonia_urban": {
-        "aristocracy": {
-            PARTY_LLIGA: 0.50, PARTY_DLR: 0.20, PARTY_AR: 0.20, PARTY_MON: 0.10,
-            "right_republican_other": 0.05
-        },
-        "clergy": {
-            PARTY_LLIGA: 0.60, PARTY_DLR: 0.25, PARTY_CEDA: 0.10, PARTY_MON: 0.05,
-            "catholic_other": 0.05
-        },
-        "bourgeoisie": {
-            PARTY_LLIGA: 0.40, PARTY_AR: 0.25, PARTY_ERC: 0.20, PARTY_PRR: 0.15,
-            "centre_republican_other": 0.05, "regionalist_other": 0.05
-        },
-        "workers_urban": {
-            PARTY_ERC: 0.40, PARTY_PSOE: 0.30, PARTY_PRR: 0.15, PARTY_PCE: 0.10, PARTY_AR: 0.05,
-            "left_republican_other": 0.05, "marxist_other": 0.05
-        },
-        "workers_rural": {
-            PARTY_LLIGA: 0.40, PARTY_ERC: 0.30, PARTY_PRRS: 0.20, PARTY_PSOE: 0.10,
-            "regionalist_other": 0.05
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40, PARTY_PSOE: 0.30, PARTY_AR: 0.20, PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
-        }
-    },
-
-    # --- CATALONIA RURAL ---
-    "catalonia_rural": {
-        "aristocracy": {
-            PARTY_LLIGA: 0.60, PARTY_DLR: 0.20, PARTY_MON: 0.20,
-            "right_republican_other": 0.05
-        },
-        "clergy": {
-            PARTY_LLIGA: 0.70, PARTY_DLR: 0.20, PARTY_CEDA: 0.10,
-            "catholic_other": 0.05
-        },
-        "bourgeoisie": {
-            PARTY_LLIGA: 0.50, PARTY_AR: 0.20, PARTY_ERC: 0.20, PARTY_PRR: 0.10,
-            "regionalist_other": 0.05
-        },
-        "workers_urban": {
-            PARTY_ERC: 0.35, PARTY_PSOE: 0.30, PARTY_PRR: 0.20, PARTY_PCE: 0.10, PARTY_AR: 0.05,
-            "left_republican_other": 0.05
-        },
-        "workers_rural": {
-            PARTY_LLIGA: 0.40, PARTY_ERC: 0.30, PARTY_PRRS: 0.20, PARTY_PSOE: 0.10,
-            "regionalist_other": 0.05
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40, PARTY_PSOE: 0.30, PARTY_AR: 0.20, PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
-        }
-    },
-
-    "madrid_urban": {
-        "aristocracy": {
-            PARTY_MON: 0.40,
-            PARTY_DLR: 0.25,
-            PARTY_PRR: 0.20,
-            PARTY_CEDA: 0.10,
-            PARTY_AR: 0.05
-        },
-        "clergy": {
-            PARTY_DLR: 0.35,
-            PARTY_CEDA: 0.30,
-            PARTY_MON: 0.20,
-            PARTY_AR: 0.10,
-            PARTY_PRR: 0.05
-        },
-        "bourgeoisie": {
-            PARTY_PRR: 0.40,
-            PARTY_AR: 0.25,
-            PARTY_DLR: 0.15,
-            PARTY_PSOE: 0.10,
+            PARTY_PA: 0.45, 
+            PARTY_DLR: 0.25, 
+            PARTY_MON: 0.20, 
             PARTY_CEDA: 0.10
-        },
-        "workers_urban": {
-            PARTY_PSOE: 0.45,
-            PARTY_PRRS: 0.20,
-            PARTY_PCE: 0.15,
-            PARTY_PRR: 0.10,
-            PARTY_AR: 0.10
-        },
-        "workers_rural": {
-            PARTY_PSOE: 0.35,
-            PARTY_PRRS: 0.25,
-            PARTY_PCE: 0.15,
-            PARTY_PRR: 0.15,
-            PARTY_AR: 0.10
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40,
-            PARTY_PSOE: 0.30,
-            PARTY_AR: 0.20,
-            PARTY_PCE: 0.10
-        }
-    },
-
-    "extremadura_latifundio": {
-        "aristocracy": {
-            PARTY_MON: 0.45,
-            PARTY_DLR: 0.30,
-            PARTY_CEDA: 0.20,
-            PARTY_PRR: 0.05
         },
         "clergy": {
             PARTY_DLR: 0.45,
-            PARTY_CEDA: 0.35,
-            PARTY_MON: 0.15,
-            PARTY_AR: 0.05
+            PARTY_CEDA: 0.25, 
+            PARTY_PA: 0.20, 
+            PARTY_MON: 0.10
         },
         "bourgeoisie": {
-            PARTY_PRR: 0.40,
-            PARTY_DLR: 0.30,
-            PARTY_AR: 0.20,
-            PARTY_PSOE: 0.10
+            PARTY_PRR: 0.30, PARTY_DLR: 0.20, PARTY_AR: 0.15, PARTY_PA: 0.20,
+            PARTY_PSOE: 0.10, PARTY_CEDA: 0.05, "centre_republican_other": 0.10
         },
         "workers_urban": {
-            PARTY_PSOE: 0.50,
-            PARTY_PRRS: 0.20,
-            PARTY_PCE: 0.15,
-            PARTY_PRR: 0.10,
-            PARTY_AR: 0.05
+            PARTY_PSOE: 0.45,
+            PARTY_PRR: 0.15,
+            PARTY_PRRS: 0.35,
+            PARTY_PCE: 0.05,
+            PARTY_AR: 0.10,
+            "left_republican_other": 0.15
         },
         "workers_rural": {
-            PARTY_PSOE: 0.45,
-            PARTY_CNT: 0.30,
-            PARTY_PRRS: 0.15,
-            PARTY_CEDA: 0.10
+            PARTY_PA: 0.35, PARTY_CEDA: 0.20, PARTY_DLR: 0.05, PARTY_MON: 0.05, PARTY_PSOE: 0.15, PARTY_PRRS: 0.10,
+            "catholic_other": 0.10
         },
         "soldiers": {
-            PARTY_PRR: 0.40,
-            PARTY_PSOE: 0.30,
-            PARTY_AR: 0.20,
+            PARTY_PRR: 0.35,
+            PARTY_PSOE: 0.25,
+            PARTY_PA: 0.20,
+            PARTY_AR: 0.15,
+            PARTY_PCE: 0.05,
+            "catholic_other": 0.10
+        }
+    },
+
+    # --- ASTURIAS (Die Rote Hochburg / Minenarbeiter) ---
+    # Massive Dominanz der Linkskoalition. PCE ungewöhnlich stark.
+    # Charakteristik: Hochburg der UGT (PSOE) und signifikante kommunistische Präsenz.
+    "asturias_mining": {
+        "aristocracy": {
+            # Die wenigen Reichen wählen Agrarier oder Monarchisten als Schutz
+            PARTY_PA: 0.35, 
+            PARTY_DLR: 0.25, 
+            PARTY_MON: 0.25, 
+            PARTY_CEDA: 0.10,
+            "right_republican_other": 0.05
+        },
+        "clergy": {
+            PARTY_CEDA: 0.40, 
+            PARTY_PA: 0.25, 
+            PARTY_DLR: 0.25, 
+            PARTY_MON: 0.10
+        },
+        "bourgeoisie": {
+            # Starker Rückhalt für linke Republikaner (Teodomiro Menéndez etc.)
+            PARTY_PRRS: 0.30,       # Radical Socialists stark
+            PARTY_AR: 0.25,         # Azaña
+            PARTY_PRR: 0.20,        # Lerroux
+            PARTY_DLR: 0.15,
+            PARTY_PSOE: 0.10        # Sympathisanten
+        },
+        "workers_urban": {
+            PARTY_PSOE: 0.60,       # UGT Dominanz
+            PARTY_PCE: 0.15,        # 12k Stimmen -> ~15% des linken Lagers hier
+            PARTY_PRRS: 0.10, 
+            PARTY_PRR: 0.10,
+            "marxist_other": 0.05
+        },
+        "workers_rural": {
+            # Auch auf dem Land (Minendörfer) sehr links
+            PARTY_PSOE: 0.50, 
+            PARTY_CNT: 0.20,        # Anarchisten präsent
+            PARTY_PCE: 0.10, 
+            PARTY_PA: 0.15,         # Konservative Bauern (Minderheit)
+            "left_republican_other": 0.05
+        },
+        "soldiers": {
+            PARTY_PSOE: 0.40,       # Soldaten aus Arbeiterfamilien
+            PARTY_PRR: 0.30, 
+            PARTY_AR: 0.20, 
             PARTY_PCE: 0.10
         }
     },
 
-    # --- ANDALUCÍA LATIFUNDIO ---
-    "andalucia_latifundio": {
+    # --- PAÍS VASCO RURAL (Navarra, Alava, Vizcaya Provinz) ---
+    # PDF: "Se impone la coalición... PNV y tradicionalistas [Carlisten]"
+    # Navarra: 46k für Estella-Koalition vs 27k für Linke.
+    # Charakteristik: Tief katholisch, konservativ, für "Fueros" (regionale Rechte).
+    "pais_vasco_rural": {
         "aristocracy": {
-            PARTY_MON: 0.50, PARTY_DLR: 0.30, PARTY_CEDA: 0.20,
-            "catholic_other": 0.05, "right_republican_other": 0.05
+            # Carlisten (MON) und PNV dominieren
+            PARTY_MON: 0.40,        # Carlisten (Tradionalisten)
+            PARTY_PNV: 0.40, 
+            PARTY_CEDA: 0.10, 
+            PARTY_DLR: 0.10
         },
         "clergy": {
-            PARTY_DLR: 0.50, PARTY_CEDA: 0.30, PARTY_MON: 0.20,
-            "catholic_other": 0.10
+            # Der Klerus hier war extrem nationalistisch/carlistisch
+            PARTY_PNV: 0.50, 
+            PARTY_MON: 0.40, 
+            PARTY_CEDA: 0.10
         },
         "bourgeoisie": {
-            PARTY_PRR: 0.40, PARTY_DLR: 0.30, PARTY_AR: 0.20, PARTY_PSOE: 0.10,
-            "centre_republican_other": 0.05
-        },
-        "workers_urban": {
-            PARTY_PSOE: 0.45, PARTY_PRR: 0.25, PARTY_PRRS: 0.20, PARTY_PCE: 0.10,
-            "left_republican_other": 0.05
-        },
-        "workers_rural": {
-            PARTY_PSOE: 0.40, PARTY_CNT: 0.30, PARTY_PRRS: 0.20, PARTY_CEDA: 0.10,
-            "left_republican_other": 0.05
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40, PARTY_PSOE: 0.30, PARTY_AR: 0.20, PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
-        }
-    },
-
-    # --- ANDALUCÍA MIXED ---
-    "andalucia_mixed": {
-        "aristocracy": {
-            PARTY_MON: 0.40, PARTY_DLR: 0.30, PARTY_CEDA: 0.30,
-            "catholic_other": 0.05
-        },
-        "clergy": {
-            PARTY_DLR: 0.45, PARTY_CEDA: 0.35, PARTY_MON: 0.20,
-            "catholic_other": 0.10
-        },
-        "bourgeoisie": {
-            PARTY_PRR: 0.40, PARTY_AR: 0.30, PARTY_DLR: 0.20, PARTY_PSOE: 0.10,
-            "centre_republican_other": 0.05
-        },
-        "workers_urban": {
-            PARTY_PSOE: 0.40, PARTY_PRR: 0.30, PARTY_PRRS: 0.20, PARTY_PCE: 0.10,
-            "left_republican_other": 0.05
-        },
-        "workers_rural": {
-            PARTY_PSOE: 0.35, PARTY_CNT: 0.25, PARTY_PRRS: 0.25, PARTY_CEDA: 0.15,
-            "left_republican_other": 0.05
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40, PARTY_PSOE: 0.30, PARTY_AR: 0.20, PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
-        }
-    },
-
-    # --- VALENCIA MIXED ---
-    "valencia_mixed": {
-        "aristocracy": {
-            PARTY_MON: 0.30,
-            PARTY_DLR: 0.30,
-            PARTY_CEDA: 0.30,
-            "catholic_other": 0.05
-        },
-        "clergy": {
-            PARTY_DLR: 0.40,
-            PARTY_CEDA: 0.35,
-            PARTY_MON: 0.20,
-            "catholic_other": 0.10
-        },
-        "bourgeoisie": {
-            PARTY_PRR: 0.35,
-            PARTY_AR: 0.25,
-            PARTY_DLR: 0.20,
-            PARTY_PSOE: 0.10,
-            "centre_republican_other": 0.05,
+            # Ländliches Bürgertum wählt PNV
+            PARTY_PNV: 0.60, 
+            PARTY_MON: 0.15, 
+            PARTY_DLR: 0.10, 
+            PARTY_PRR: 0.10,
             "regionalist_other": 0.05
         },
         "workers_urban": {
-            PARTY_PSOE: 0.35,
-            PARTY_PRR: 0.25,
-            PARTY_PRRS: 0.20,
-            PARTY_PCE: 0.10,
-            PARTY_AR: 0.10,
-            "left_republican_other": 0.05,
-            "marxist_other": 0.03
+            # Auch hier gibt es einige Linke, aber PNV ist stark (christliche Gewerkschaften ELA)
+            PARTY_PSOE: 0.35, 
+            PARTY_PNV: 0.35, 
+            PARTY_PRRS: 0.15, 
+            "catholic_other": 0.15
         },
         "workers_rural": {
-            PARTY_PSOE: 0.30,
-            PARTY_PRRS: 0.25,
-            PARTY_CEDA: 0.20,
-            PARTY_CNT: 0.10,
-            "left_republican_other": 0.05
+            # Anders als im Rest Spaniens: Katholische Bauern wählen PNV/Carlisten
+            PARTY_PNV: 0.45, 
+            PARTY_MON: 0.30, 
+            PARTY_PSOE: 0.15,
+            PARTY_PA: 0.10
         },
         "soldiers": {
-            PARTY_PRR: 0.40,
-            PARTY_PSOE: 0.30,
-            PARTY_AR: 0.20,
-            PARTY_PCE: 0.10,
+            PARTY_MON: 0.30,        # Requetés (Carlisten-Miliz) Rekrutierungspotenzial
+            PARTY_PNV: 0.30, 
+            PARTY_PRR: 0.20, 
+            PARTY_PSOE: 0.20
+        }
+    },
+
+    # --- PAÍS VASCO INDUSTRIAL (Bilbao, Guipúzcoa) ---
+    # PDF Bilbao: Linke (Prieto) gewinnt gegen PNV.
+    # Charakteristik: Starke Industrie, starke PSOE, aber auch starkes PNV-Bürgertum.
+    "pais_vasco_industrial": {
+        "aristocracy": {
+            PARTY_PNV: 0.40, PARTY_MON: 0.30, PARTY_PRR: 0.20, PARTY_DLR: 0.10
+        },
+        "clergy": {
+            PARTY_PNV: 0.50, PARTY_MON: 0.30, PARTY_CEDA: 0.20
+        },
+        "bourgeoisie": {
+            # Die Industrie-Magnaten von Bilbao (Neguri)
+            PARTY_PNV: 0.45,        # Baskischer Nationalismus
+            PARTY_PRR: 0.25,        # Republikanische Ordnung
+            PARTY_AR: 0.15, 
+            PARTY_DLR: 0.10,
             "right_republican_other": 0.05
+        },
+        "workers_urban": {
+            # Indalecio Prietos Hochburg
+            PARTY_PSOE: 0.55,       # Starke UGT
+            PARTY_PCE: 0.10,        # Kommunisten
+            PARTY_PNV: 0.15,        # Christliche Arbeiter (ELA)
+            "left_republican_other": 0.10, # ANV (Linksnationalisten)
+            PARTY_PRRS: 0.10
+        },
+        "workers_rural": {
+            PARTY_PNV: 0.40, PARTY_PSOE: 0.30, PARTY_MON: 0.20, PARTY_PRRS: 0.10
+        },
+        "soldiers": {
+            PARTY_PSOE: 0.40, PARTY_PNV: 0.30, PARTY_PRR: 0.20, PARTY_MON: 0.10
+        }
+    },
+
+    # --- ARAGON (Die Festung der Radikalen / Lerrouxismus) ---
+    # PDF: "Desunión de las izquierdas... PR Radical domina."
+    # Charakteristik: Urbanes Bürgertum und Arbeiter wählen Lerroux. 
+    # Auf dem Land starke Anarchisten (Abstention), was die PSOE schwächt.
+    "aragon_mixed": {
+        "aristocracy": {
+            PARTY_PA: 0.30,        # Agrarier (ländlicher Adel)
+            PARTY_DLR: 0.30,       # Alcalá-Zamora war in Zaragoza Provinz beliebt
+            PARTY_PRR: 0.20,       # Ordnungsorientierte Radikale
+            PARTY_MON: 0.20
+        },
+        "clergy": {
+            PARTY_CEDA: 0.40, 
+            PARTY_DLR: 0.30, 
+            PARTY_PA: 0.20,
+            PARTY_MON: 0.10
+        },
+        "bourgeoisie": {
+            # Das ist Lerroux' Kernwählerschaft
+            PARTY_PRR: 0.55,       # Absolute Dominanz der Radikalen
+            PARTY_PRRS: 0.15, 
+            PARTY_AR: 0.15, 
+            PARTY_DLR: 0.15
+        },
+        "workers_urban": {
+            # Hier wählen Arbeiter NICHT automatisch PSOE
+            PARTY_PRR: 0.35,       # Lerroux' populistischer Appeal
+            PARTY_PSOE: 0.25,      # Historisch schwach in Zaragoza Stadt
+            PARTY_PRRS: 0.20, 
+            PARTY_PCE: 0.10,
+            PARTY_CNT: 0.10        # Einige wählen trotz Boykott
+        },
+        "workers_rural": {
+            # CNT-Gebiet. Wer wählt, wählt oft Radikal-Sozialistisch
+            PARTY_PRRS: 0.30, 
+            PARTY_CNT: 0.40,       # MASSIVE ABSTENTION (simuliert durch Gewichtung)
+            PARTY_PRR: 0.15, 
+            PARTY_PSOE: 0.10,
+            PARTY_PA: 0.05
+        },
+        "soldiers": {
+            PARTY_PRR: 0.60,       # Militärs in Aragon waren oft "Lerrouxistas"
+            PARTY_PSOE: 0.20, 
+            PARTY_AR: 0.20
+        }
+    },
+
+    # --- CATALONIA URBAN (Barcelona Stadt) ---
+    # PDF: Erdrutschsieg für Macià (ERC). Lliga und PSOE fast bedeutungslos.
+    # Charakteristik: Massives urbanes Proletariat (CNT-Sympathisanten), das taktisch ERC wählt.
+    "catalonia_urban": {
+        "aristocracy": {
+            # Der katalanische Adel (Industrielle) wählt Lliga
+            PARTY_LLIGA: 0.50, 
+            PARTY_DLR: 0.20, 
+            PARTY_MON: 0.20,
+            "regionalist_other": 0.10
+        },
+        "clergy": {
+            PARTY_LLIGA: 0.60, 
+            PARTY_CEDA: 0.20, 
+            PARTY_DLR: 0.20
+        },
+        "bourgeoisie": {
+            # Das Kleinbürgertum (Botiguers) wählt ERC, die Großbürger Lliga
+            PARTY_ERC: 0.45, 
+            PARTY_LLIGA: 0.30, 
+            PARTY_AR: 0.15, 
+            PARTY_PRR: 0.10
+        },
+        "workers_urban": {
+            # MASSIVE ABSTENTION durch CNT möglich, aber 1931 wählten sie ERC!
+            PARTY_ERC: 0.60,       # Katalanischer Linksnationalismus als Arbeiterersatz
+            PARTY_PRR: 0.15,       # "Lerrouxistas" in den Elendsvierteln (Parallel)
+            PARTY_CNT: 0.15,       # Hardcore-Nichtwähler
+            PARTY_PSOE: 0.05,      # Historisch fast irrelevant in Barcelona
+            PARTY_PCE: 0.05
+        },
+        "workers_rural": {
+            PARTY_ERC: 0.60, 
+            PARTY_LLIGA: 0.20, 
+            PARTY_PRRS: 0.20
+        },
+        "soldiers": {
+            PARTY_ERC: 0.40, 
+            PARTY_PRR: 0.30, 
+            PARTY_PSOE: 0.20, 
+            PARTY_AR: 0.10
+        }
+    },
+
+    # --- CATALONIA RURAL (Girona, Lleida, Tarragona) ---
+    # PDF: "ERC vence en todas las circunscripciones."
+    # Charakteristik: Konservativer als Barcelona, aber ERC dominiert durch das "Statut"-Versprechen.
+    "catalonia_rural": {
+        "aristocracy": {
+            PARTY_LLIGA: 0.60, PARTY_MON: 0.20, PARTY_DLR: 0.20
+        },
+        "clergy": {
+            PARTY_LLIGA: 0.70, PARTY_CEDA: 0.20, "catholic_other": 0.10
+        },
+        "bourgeoisie": {
+            PARTY_ERC: 0.40, 
+            PARTY_LLIGA: 0.40,      # Kopf an Kopf auf dem Land
+            PARTY_PRR: 0.10, 
+            "regionalist_other": 0.10
+        },
+        "workers_urban": {
+            PARTY_ERC: 0.50, PARTY_PSOE: 0.20, PARTY_PRR: 0.20, PARTY_PCE: 0.10
+        },
+        "workers_rural": {
+            # Bauern im Hinterland (Rabassaires) hassen die Lliga-Vermieter
+            PARTY_ERC: 0.55,       # Rabassaires-Gewerkschaft war ERC-nah
+            PARTY_LLIGA: 0.25, 
+            PARTY_PRRS: 0.20
+        },
+        "soldiers": {
+            PARTY_ERC: 0.40, PARTY_PRR: 0.30, PARTY_PSOE: 0.30
+        }
+    },
+
+    # --- MADRID URBAN (Zentrum der Macht / UGT-Bastion) ---
+    # PDF: Überwältigender Sieg der Conjunción (133k Stimmen).
+    # Charakteristik: Massives, gewerkschaftlich organisiertes Proletariat (PSOE/UGT) 
+    # und eine starke republikanische Intelligenzija (Azaña/AR).
+    "madrid_urban": {
+        "aristocracy": {
+            # In der Hauptstadt ist der Adel isoliert, wählt defensiv
+            PARTY_MON: 0.35,        # Alfonsinos
+            PARTY_DLR: 0.25,        # Liberale Monarchisten-Überläufer
+            PARTY_PRR: 0.20, 
+            "right_republican_other": 0.15,
+            PARTY_AR: 0.05
+        },
+        "clergy": {
+            # Starker Widerstand gegen den Antiklerikalismus der Hauptstadt
+            PARTY_CEDA: 0.40,       # Acción Nacional (Herrera Oria)
+            PARTY_DLR: 0.25,        # Maura-Flügel
+            PARTY_MON: 0.25,
+            PARTY_AR: 0.10
+        },
+        "bourgeoisie": {
+            # Zentrum der republikanischen Beamten und Intellektuellen
+            PARTY_AR: 0.35,         # Azañas Kernwählerschaft (Ateneístas)
+            PARTY_PRR: 0.25,        # Lerroux
+            PARTY_DLR: 0.15, 
+            "centre_republican_other": 0.15, # Unabhängige Liberale
+            PARTY_PSOE: 0.10        # Linke Intellektuelle
+        },
+        "workers_urban": {
+            # Herzland der UGT. Die PSOE dominiert das Proletariat fast vollständig.
+            PARTY_PSOE: 0.65,       # Absolute Dominanz (Caballero/Besteiro)
+            PARTY_PRRS: 0.10,       # Radikal-Sozialisten
+            PARTY_AR: 0.10,         # Reformistische Arbeiter
+            PARTY_PCE: 0.05,        # Kleine, laute Minderheit
+            PARTY_PRR: 0.05,
+            "marxist_other": 0.05
+        },
+        "workers_rural": {
+            # Madrid Umland (Tageslöhner)
+            PARTY_PSOE: 0.50, 
+            PARTY_PRRS: 0.30, 
+            "left_republican_other": 0.20
+        },
+        "soldiers": {
+            # Die Garnison von Madrid schwankt zwischen Disziplin und Revolte
+            PARTY_PSOE: 0.40, 
+            PARTY_PRR: 0.30, 
+            PARTY_AR: 0.20, 
+            PARTY_MON: 0.10         # Alte Garde im Offizierskorps
+        }
+    },
+
+    # --- ANDALUCÍA LATIFUNDIO (Ländliches Hinterland: Jaén, Córdoba, Badajoz-Stil) ---
+    # PDF: PSOE-ASR holt in Jaén 83k Stimmen, in Córdoba Prov. 71k. 
+    # Charakteristik: Herrschaft der Caciques vs. massivste sozialistische Mobilisierung.
+    "andalucia_latifundio": {
+        "aristocracy": {
+            # Die Latifundistas wählen die Agrarier (PA) oder Monarchisten
+            PARTY_PA: 0.45,         # Schutz des Eigentums
+            PARTY_MON: 0.25,        # Traditionelle Ordnung
+            PARTY_DLR: 0.20,        # Alcala-Zamora Anhänger
+            PARTY_CEDA: 0.10
+        },
+        "clergy": {
+            PARTY_DLR: 0.40,        # Katholisch-Republikanisch (Zamora-Einfluss)
+            PARTY_CEDA: 0.30, 
+            PARTY_MON: 0.30
+        },
+        "bourgeoisie": {
+            # Das ländliche Bürgertum wählt PRR oder DLR
+            PARTY_PRR: 0.40, 
+            PARTY_DLR: 0.30, 
+            PARTY_AR: 0.15, 
+            PARTY_PSOE: 0.15        # Liberale Gutsbesitzer
+        },
+        "workers_urban": {
+            # In den Bergwerken und Manufakturen dominiert die UGT
+            PARTY_PSOE: 0.60, 
+            PARTY_PRRS: 0.20, 
+            PARTY_PCE: 0.10,        # Erste starke Zellen in Sevilla/Málaga
+            PARTY_PRR: 0.10
+        },
+        "workers_rural": {
+            # Das "Sorgenkind" der Republik: Landlose Tagelöhner
+            PARTY_PSOE: 0.55,       # Enorme UGT-Basis
+            PARTY_CNT: 0.30,        # MASSIVE ABSTENTION (Boykottgefahr)
+            PARTY_PRRS: 0.10,       # Versprechen der Landreform
+            PARTY_PA: 0.05          # Durch Caciques erzwungene Stimmen
+        },
+        "soldiers": {
+            PARTY_PSOE: 0.45, 
+            PARTY_PRR: 0.35, 
+            PARTY_DLR: 0.20
+        }
+    },
+
+    # --- ANDALUCÍA URBAN (Sevilla Stadt, Málaga Stadt, Cádiz) ---
+    # PDF Sevilla: PRR (Martínez Barrio) dominiert mit 30k Stimmen.
+    # Charakteristik: Starker republikanischer Mittelstand und antiklerikale Arbeiter.
+    "andalucia_urban": {
+        "aristocracy": {
+            PARTY_MON: 0.40, PARTY_DLR: 0.30, PARTY_PRR: 0.20, PARTY_CEDA: 0.10
+        },
+        "clergy": {
+            PARTY_DLR: 0.40, PARTY_CEDA: 0.30, PARTY_MON: 0.30
+        },
+        "bourgeoisie": {
+            # Hochburg der Radikalen Partei (PRR)
+            PARTY_PRR: 0.50,        # Die Partei von Martínez Barrio
+            PARTY_AR: 0.20, 
+            PARTY_PRRS: 0.15, 
+            PARTY_DLR: 0.10,
+            PARTY_PSOE: 0.05
+        },
+        "workers_urban": {
+            # Kampf zwischen PRR-Populismus und Sozialismus
+            PARTY_PSOE: 0.45, 
+            PARTY_PRR: 0.25,        # Lerroux/Barrio waren hier populär
+            PARTY_PRRS: 0.15, 
+            PARTY_PCE: 0.10,        # Málaga war sehr radikal
+            "marxist_other": 0.05
+        },
+        "workers_rural": {
+            PARTY_PSOE: 0.40, PARTY_CNT: 0.35, PARTY_PRRS: 0.25
+        },
+        "soldiers": {
+            PARTY_PRR: 0.50, PARTY_PSOE: 0.30, PARTY_AR: 0.20
+        }
+    },
+
+    # --- LEVANTE BLASQUISTA (Valencia & Alicante) ---
+    # PDF: "El PURA se integró en el P. Radical... el ala izquierda en el Radical Socialista."
+    # Charakteristik: Populistischer, urbaner Republikanismus. Extrem antiklerikal.
+    "valencia_mixed": {
+        "aristocracy": {
+            PARTY_DLR: 0.40, PARTY_PRR: 0.30, PARTY_MON: 0.20, PARTY_CEDA: 0.10
+        },
+        "clergy": {
+            PARTY_DLR: 0.40, PARTY_CEDA: 0.30, PARTY_PRR: 0.20, PARTY_MON: 0.10
+        },
+        "bourgeoisie": {
+            # Hochburg der Radikalen (PURA-Einfluss)
+            PARTY_PRR: 0.55,       # Dominanz der Lerrouxistas/Blasquistas
+            PARTY_PRRS: 0.20,      # Starker linker Flügel
+            PARTY_AR: 0.15, 
+            PARTY_DLR: 0.10
+        },
+        "workers_urban": {
+            # Blasquismo war eine echte Volksbewegung
+            PARTY_PRR: 0.40,       # Arbeiter wählen hier oft Radikal
+            PARTY_PSOE: 0.35, 
+            PARTY_PRRS: 0.15, 
+            PARTY_PCE: 0.10
+        },
+        "workers_rural": {
+            PARTY_PRRS: 0.35,      # Linke Republikaner versprechen Landreform
+            PARTY_PSOE: 0.30, 
+            PARTY_PRR: 0.20, 
+            PARTY_CEDA: 0.15
+        },
+        "soldiers": {
+            PARTY_PRR: 0.60, PARTY_PSOE: 0.20, PARTY_AR: 0.20
+        }
+    },
+
+    # --- LA RIOJA SMALLHOLDER (Logroño) ---
+    # PDF: Sieg der Izquierdas (PRRS & PSOE).
+    # Charakteristik: Republikanische Kleinbauern.
+    "la_rioja_smallholder": {
+        "aristocracy": {
+            PARTY_PA: 0.40, PARTY_MON: 0.30, PARTY_DLR: 0.30
+        },
+        "clergy": {
+            PARTY_DLR: 0.40, PARTY_CEDA: 0.30, PARTY_PA: 0.30
+        },
+        "bourgeoisie": {
+            PARTY_PRRS: 0.35,      # Marcelino Domingo (PRRS) war hier populär
+            PARTY_PRR: 0.30, 
+            PARTY_AR: 0.20, 
+            PARTY_DLR: 0.15
+        },
+        "workers_urban": {
+            PARTY_PSOE: 0.50, PARTY_PRRS: 0.30, PARTY_PRR: 0.20
+        },
+        "workers_rural": {
+            # Kleinbauern wählen links-republikanisch
+            PARTY_PRRS: 0.40, 
+            PARTY_PSOE: 0.30, 
+            PARTY_PA: 0.20, 
+            PARTY_CEDA: 0.10
+        },
+        "soldiers": {
+            PARTY_PRRS: 0.40, PARTY_PSOE: 0.30, PARTY_PRR: 0.30
         }
     },
 
     # --- CANARIAS MIXED ---
     "canarias_mixed": {
         "aristocracy": {
-            PARTY_MON: 0.30,
-            PARTY_DLR: 0.30,
-            PARTY_CEDA: 0.30,
-            "catholic_other": 0.05
+            PARTY_PRR: 0.40, PARTY_MON: 0.30, PARTY_DLR: 0.30
         },
         "clergy": {
-            PARTY_DLR: 0.40,
-            PARTY_CEDA: 0.35,
-            PARTY_MON: 0.20,
-            "catholic_other": 0.10
+            PARTY_DLR: 0.50, PARTY_CEDA: 0.30, PARTY_MON: 0.20
         },
         "bourgeoisie": {
-            PARTY_PRR: 0.35,
-            PARTY_AR: 0.25,
-            PARTY_DLR: 0.20,
-            PARTY_PSOE: 0.10,
-            "centre_republican_other": 0.05
+            # Kanarisches Bürgertum wählte Martínez Barrio (PRR)
+            PARTY_PRR: 0.50, PARTY_AR: 0.20, PARTY_PRRS: 0.20, PARTY_DLR: 0.10
         },
         "workers_urban": {
-            PARTY_PSOE: 0.35,
-            PARTY_PRR: 0.25,
-            PARTY_PRRS: 0.20,
-            PARTY_PCE: 0.10,
-            PARTY_AR: 0.10,
-            "left_republican_other": 0.05
+            # Starke Spaltung zwischen PSOE und PRR (Tenerife)
+            PARTY_PSOE: 0.35, PARTY_PRR: 0.35, PARTY_PRRS: 0.20, PARTY_AR: 0.10
         },
         "workers_rural": {
-            PARTY_PSOE: 0.30,
-            PARTY_PRRS: 0.25,
-            PARTY_CEDA: 0.20,
-            PARTY_CNT: 0.10,
-            "left_republican_other": 0.05
+            # Bauern wählten oft PRR oder PRRS
+            PARTY_PRR: 0.40, PARTY_PRRS: 0.30, PARTY_PSOE: 0.20, PARTY_CEDA: 0.10
         },
         "soldiers": {
-            PARTY_PRR: 0.40,
-            PARTY_PSOE: 0.30,
-            PARTY_AR: 0.20,
-            PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
+            PARTY_PRR: 0.60, PARTY_PSOE: 0.20, PARTY_AR: 0.20
         }
     },
-
-    # --- LA RIOJA SMALLHOLDER ---
-    "la_rioja_smallholder": {
-        "aristocracy": {
-            PARTY_MON: 0.40,
-            PARTY_DLR: 0.30,
-            PARTY_CEDA: 0.20,
-            "catholic_other": 0.05
-        },
-        "clergy": {
-            PARTY_DLR: 0.45,
-            PARTY_CEDA: 0.35,
-            PARTY_MON: 0.20,
-            "catholic_other": 0.10
-        },
-        "bourgeoisie": {
-            PARTY_PRR: 0.35,
-            PARTY_DLR: 0.25,
-            PARTY_CEDA: 0.20,
-            PARTY_AR: 0.10,
-            "right_republican_other": 0.05
-        },
-        "workers_urban": {
-            PARTY_PSOE: 0.35,
-            PARTY_PRR: 0.25,
-            PARTY_PRRS: 0.20,
-            PARTY_PCE: 0.10,
-            PARTY_AR: 0.10,
-            "left_republican_other": 0.05
-        },
-        "workers_rural": {
-            PARTY_PSOE: 0.30,
-            PARTY_PRRS: 0.25,
-            PARTY_CEDA: 0.20,
-            PARTY_CNT: 0.10,
-            "catholic_other": 0.05,
-            "left_republican_other": 0.05
-        },
-        "soldiers": {
-            PARTY_PRR: 0.40,
-            PARTY_PSOE: 0.30,
-            PARTY_AR: 0.20,
-            PARTY_PCE: 0.10,
-            "right_republican_other": 0.05
-        }
-    }
 }
 
 # --- 4. GLOBAL STATE (Start Values - Expanded) ---
@@ -1240,33 +1399,35 @@ STATE_START = {
             PARTY_PRR: 0.170
         },
         "clergy": {
-            PARTY_MON: 0.300,
-            PARTY_CEDA: 0.300,
-            PARTY_DLR: 0.350,
-            PARTY_PNV: 0.050   # Baskischer Klerus
+            PARTY_DLR: 0.50,
+            PARTY_CATHOLIC_OTHER: 0.15,
+            PARTY_CEDA: 0.15,
+            PARTY_MON: 0.10,
+            PARTY_PNV: 0.10
         },
-        "bourgeoisie": { # Das Bürgertum ist gespalten
-            PARTY_AR: 0.270,   # Intellektuelle
-            PARTY_PRR: 0.350,  # Geschäftsleute (Lerroux)
-            PARTY_DLR: 0.200,  # Katholische Bürgerschicht
-            PARTY_PSOE: 0.050, # Sympathisanten (Lehrer etc.)
-            PARTY_ERC: 0.100,  # In Katalonien
-            PARTY_MON: 0.030
+        "bourgeoisie": { 
+            PARTY_DLR: 0.30,
+            PARTY_AR: 0.30,
+            PARTY_PRR: 0.20,
+            PARTY_CENTRE_REP_OTHER: 0.10,
+            PARTY_PSOE: 0.05,
+            PARTY_ERC: 0.05
         },
         "workers_urban": {
-            PARTY_PSOE: 0.450,
-            PARTY_PRRS: 0.250, # Linksliberale
-            PARTY_PCE: 0.025,  
-            PARTY_AR: 0.050,   # Azaña Fans
-            PARTY_ERC: 0.075,  # Katalanische Arbeiter
-            PARTY_PRR: 0.150   # Lerroux war früher populär bei Arbeitern ("Kaiser der Paralelo")
+            PARTY_PSOE: 0.30,
+            PARTY_PRRS: 0.30,
+            PARTY_AR: 0.20,
+            PARTY_LEFT_REP_OTHER: 0.10,
+            PARTY_PCE: 0.05,
+            PARTY_PRR: 0.05
         },
         "workers_rural": {
-            PARTY_PSOE: 0.450, # Landarbeiter im Süden
-            PARTY_PRRS: 0.200, # Linke Republikaner versprachen Land
-            PARTY_CEDA: 0.100, # Kleinbauern im Norden (katholisch)
-            PARTY_MON: 0.050,  # Durch Caciques gezwungen
-            PARTY_CNT: 0.200   # Wählen oft nicht, aber wir tracken es
+            PARTY_PSOE: 0.38,   
+            PARTY_PRRS: 0.25,   
+            PARTY_CNT: 0.20,    
+            PARTY_CEDA: 0.10, 
+            PARTY_MON: 0.05,
+            "catholic_other": 0.02
         },
         "soldiers": { # Wehrpflichtige
             PARTY_PSOE: 0.300,
@@ -1279,7 +1440,7 @@ STATE_START = {
     "government": {
         "coalition": [PARTY_PSOE, PARTY_AR, PARTY_DLR, PARTY_PRR],
         "is_minority": False,
-        "next_election_date": {"year": 1931, "month": 6}, 
+        "next_election_date": { "year": 1931, "month": 6 }, 
         "term_length": 48
     },
 
@@ -1553,7 +1714,7 @@ COALITION_DEFINITIONS = [
     {
         "id": "republican_socialist",
         "name": "Conjunción Republicano-Socialista",
-        "partners": [PARTY_PSOE, PARTY_AR, PARTY_PRRS, PARTY_DLR, PARTY_ERC],
+        "partners": [PARTY_PSOE, PARTY_AR, PARTY_PRRS, PARTY_DLR, PARTY_ERC, PARTY_LEFT_REP_OTHER, PARTY_REGIONALIST_OTHER],
         "ideology_range": (1, 6),
         "historical_period": "1931-1933"
     },
@@ -1629,6 +1790,7 @@ COALITION_DEFINITIONS = [
 # Format: "PartyID": {"MinistryKey": ["Name1", "Name2"]}
 PARTY_MINISTERS = {
     PARTY_PSOE: {
+        "prime_minister": ["Largo Caballero"],
         "labor": ["Largo Caballero", "Indalecio Prieto"],
         "finance": ["Indalecio Prieto", "Juan Negrín"],
         "justice": ["Fernando de los Ríos"],
@@ -1636,20 +1798,27 @@ PARTY_MINISTERS = {
     },
     PARTY_AR: {
         "war": ["Manuel Azaña"],
-        "president": ["Manuel Azaña"],
+        "prime_minister": ["Manuel Azaña"],
         "state": ["Claudio Sánchez-Albornoz"],
         "finance": ["Jaime Carner"]
     },
     PARTY_PRR: { # Radicals
+        "prime_minister": ["Alejandro Lerroux"],
         "state": ["Alejandro Lerroux"],
         "interior": ["Rafael Salazar Alonso", "Diego Martínez Barrio", "Ricardo Samper"],
         "finance": ["Joaquín Chapaprieta"],
         "justice": ["Cantos"]
     },
     PARTY_DLR: {
-        "president": ["Niceto Alcalá-Zamora"],
+        "president_republic": ["Niceto Alcalá-Zamora"],
         "interior": ["Miguel Maura"],
         "war": ["Maura (Interim)"]
+    },
+    PARTY_PRRS: {
+        "agriculture": ["Marcelino Domingo", "Álvaro de Albornoz"],
+        "justice": ["Álvaro de Albornoz"],
+        "state": ["Marcelino Domingo"],
+        "interior": ["Santiago Casares Quiroga"]
     },
     PARTY_CEDA: {
         "war": ["Gil-Robles"],
@@ -1660,4 +1829,16 @@ PARTY_MINISTERS = {
     "others": {
         "all": ["Technocrat", "Independent"]
     }
+}
+
+# FOR DEBUGGING & BALANCING
+TARGET_1931 = {
+    PARTY_PSOE: 115,
+    PARTY_PRR: 90,
+    PARTY_PRRS: 60,
+    PARTY_AR: 30,
+    PARTY_DLR: 25,
+    PARTY_PA: 20,
+    PARTY_PCE: 5,
+    "others": 125
 }

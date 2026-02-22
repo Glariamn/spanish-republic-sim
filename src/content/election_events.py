@@ -63,7 +63,7 @@ def get_event_general_election(state):
                     "msg": f"President Alcalá-Zamora entrusts you with forming the government. Negotiations begin.",
                     "effects": {
                         "set_coalition": partners,
-                        "start_negotiation": True,
+                        "start_pm_nomination": True,
                         "coalition_stability": 20 # Start-Bonus
                     }
                 }
@@ -80,7 +80,7 @@ def get_event_general_election(state):
                     "msg": f"We have agreed to support the {leader_name}. The portfolio distribution begins.",
                     "effects": {
                         "set_coalition": partners,
-                        "start_negotiation": True,
+                        "start_pm_nomination": True,
                         "modify_faction": {"tag": "radical", "amount": 10} # Radikale mögen es nicht, Junior zu sein
                     }
                 }

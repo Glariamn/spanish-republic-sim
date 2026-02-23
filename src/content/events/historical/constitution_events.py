@@ -216,7 +216,7 @@ class Constitution26CrisisEvent(GameEvent):
                         "amount": -15
                     },
                     # Azana takes PM -- start pm nomination with Azana pre-favoured
-                    "start_pm_nomination": True
+                    "start_pm_nomination": {"skip_draft": True}
                 }
             }
         })
@@ -293,7 +293,7 @@ class ConstitutionCrisis27Event(GameEvent):
                                 "target": self.state.player_party,
                                 "amount": -35
                             },
-                            "start_pm_nomination": True
+                            "start_pm_nomination": {"skip_draft": True}
                         }
                     }
                 }
@@ -486,7 +486,7 @@ class ConstitutionRatifiedEvent(GameEvent):
                             "add_law_2": "constitution_active",
                             "public_order": 10,
                             "coalition_stability": 15,
-                            "start_pm_nomination": True
+                            "start_presidential_election": True
                         }
                     }
                 }

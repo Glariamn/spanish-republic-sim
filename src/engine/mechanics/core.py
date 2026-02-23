@@ -13,8 +13,15 @@ from content.initiatives.politics.coalition_crisis import CoalitionCrisisEvent
 from content.initiatives.party.faction_schism import FactionSchismEvent
 from content.events.historical.burning_convents import BurningConventsEvent
 from content.events.system.confidence_vote import ConfidenceVoteEvent
-from content.events.historical.events_1931 import MaciaDeclarationEvent, CardinalSeguraEvent, JuneElectionsEvent
-from content.events.historical.constitution_events import LerrouxExitEvent, Constitution26CrisisEvent, ConstitutionCrisis27Event, ConstitutionCrisis44Event, ConstitutionRatifiedEvent
+from content.events.historical.events_1931 import (
+    MaciaDeclarationEvent, CardinalSeguraEvent, JuneElectionsEvent,
+    ProclamationOfSecondRepublicEvent, ProvisionalGovernmentEvent
+)
+from content.events.historical.constitution_events import (
+    LerrouxExitEvent, Constitution26CrisisEvent, ConstitutionCrisis27Event,
+    ConstitutionCrisis44Event, ConstitutionRatifiedEvent
+)
+from content.events.historical.military_reform_event import LeyAzanaEvent
 
 def calculate_outcome(base_chance, modifiers, game_state):
     current_chance = base_chance
@@ -80,14 +87,18 @@ def process_monthly_tick(state):
     entropy_msg = apply_entropy(state)
 
     # 1. Historical Event Check
+    # Each event guards itself with event_history so it only fires once.
     historical_id = None
     y, m = state.date['year'], state.date['month']
+    history = state.get('event_history', [])
     if y == 1931:
-        if m == 4: historical_id = "1931_macia_declaration"
-        elif m == 5: historical_id = "1931_cardinal_segura"
-        elif m == 6: historical_id = "1931_june_elections"
-        elif m == 10: historical_id = "1931_lerroux_exit"
-            
+        if m == 4 and "1931_macia_declaration" not in history:
+            historical_id = "1931_macia_declaration"
+        elif m == 5 and "1931_cardinal_segura" not in history:
+            historical_id = "1931_cardinal_segura"
+        elif m == 10 and "1931_lerroux_exit" not in history:
+            historical_id = "1931_lerroux_exit"
+
     if historical_id:
         return "Historical Event Imminent.", None, historical_id
     
@@ -95,8 +106,10 @@ def process_monthly_tick(state):
     update_voter_sentiment(state)
     
     # 3. Election Check
-    next_el = state.government['next_election_date']
-    if state.date['year'] == next_el['year'] and state.date['month'] == next_el['month']:
+    next_el = state.government.get('next_election_date', {})
+    if 'year' in next_el and 'month' in next_el and state.date['year'] == next_el['year'] and state.date['month'] == next_el['month']:
+        if state.date['year'] == 1931:
+            return "Elections imminent.", None, "1931_june_elections"
         return "Term limit reached.", None, "auto_election_trigger"
 
     # 4. Crisis Check
@@ -112,18 +125,19 @@ def process_monthly_tick(state):
 
     # Dynamic Events Check
     possible_events = [
-        # Constitution crisis events — fire whenever their should_trigger() conditions are met,
-        # regardless of the monthly tick hardcodes above. Checked in priority order.
+        # Dynamic / crisis events
+        FactionSchismEvent(state),
+        BurningConventsEvent(state),
+        CoalitionCrisisEvent(state),
+        ConfidenceVoteEvent(state),
+        # Historical events that fire via dynamic check (not hardcoded above)
+        JuneElectionsEvent(state),
+        LeyAzanaEvent(state),                # May 1931+, when AR holds War
+        LerrouxExitEvent(state),             # Oct 1931
         Constitution26CrisisEvent(state),
         ConstitutionCrisis27Event(state),
         ConstitutionCrisis44Event(state),
         ConstitutionRatifiedEvent(state),
-        # Other dynamic events
-        FactionSchismEvent(state),
-        BurningConventsEvent(state),
-        CoalitionCrisisEvent(state),
-        LerrouxExitEvent(state),
-        ConfidenceVoteEvent(state)
     ]
     
     for event in possible_events:

@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Import your modules
 import content.initiatives.agriculture.agriculture as card_agri
 import content.initiatives.politics.constitution_initiatives as card_const
+import content.initiatives.military.military_reform_initiatives as card_mil
 
 def get_all_potential_cards(state):
     pool = []
@@ -13,6 +14,8 @@ def get_all_potential_cards(state):
         pool.extend(card_agri.get_initiatives(state))
     if hasattr(card_const, 'get_initiatives'):
         pool.extend(card_const.get_initiatives(state))
+    if hasattr(card_mil, 'get_initiatives'):
+        pool.extend(card_mil.get_initiatives(state))
     return pool
 
 def draw_specific_card(state, target_deck):

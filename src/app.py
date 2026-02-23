@@ -6,26 +6,29 @@ import ui.interface as ui
 import engine.deck_engine as deck_sys
 import content.election_events as el_ev
 import content.actions as actions
-import content.events.historical.constitution as const
+import content.events.historical.constitution_events as const
+import content.events.historical.military_reform_event as mil_ev
 
 from engine.mechanics.parliament import resolve_vote
 from content.issue_effects import get_issue_effects
 
 # --- 1. EVENT MAP (Korrigiert auf Klassen) ---
 EVENT_MAP = {
-    # Historische Events (Klassen aus events_1931.py)
-    "1931_election_night": ev31.AprilElectionNightEvent,
-    "1931_macia_declaration": ev31.MaciaDeclarationEvent,
-    "1931_cardinal_segura": ev31.CardinalSeguraEvent,
-    "1931_june_elections": ev31.JuneElectionsEvent,
-    "1931_lerroux_exit": const.LerrouxExitEvent,
-    "1931_constitution_26_crisis": const.Constitution26CrisisEvent,
-    "1931_constitution_27_crisis": const.ConstitutionCrisis27Event,
-    "1931_constitution_44_crisis": const.ConstitutionCrisis44Event,
-    "1931_constitution_ratified": const.ConstitutionRatifiedEvent,
-
-    # Sonderfall: Generische Wahlen sind noch eine Funktion in el_ev
-    # Das fangen wir unten im Code ab.
+    # Historical events — 1931 sequence
+    "1931_election_night":                   ev31.AprilElectionNightEvent,
+    "1931_macia_declaration":                ev31.MaciaDeclarationEvent,
+    "1931_proclamation_of_second_republic":  ev31.ProclamationOfSecondRepublicEvent,
+    "1931_provisional_government":           ev31.ProvisionalGovernmentEvent,
+    "1931_cardinal_segura":                  ev31.CardinalSeguraEvent,
+    "1931_june_elections":                   ev31.JuneElectionsEvent,
+    # Constitution events
+    "1931_lerroux_exit":                     const.LerrouxExitEvent,
+    "1931_constitution_26_crisis":           const.Constitution26CrisisEvent,
+    "1931_constitution_27_crisis":           const.ConstitutionCrisis27Event,
+    "1931_constitution_44_crisis":           const.ConstitutionCrisis44Event,
+    "1931_constitution_ratified":            const.ConstitutionRatifiedEvent,
+    # Military events
+    "1931_ley_azana":                        mil_ev.LeyAzanaEvent,
 }
 
 # --- 2. CONFIGURATION & STATE INIT ---
@@ -57,16 +60,13 @@ def init_game_state(player_party_id):
     st.session_state.last_outcome_text = None 
     st.session_state.dynamic_event_data = None
     st.session_state.negotiation_active = False
-    st.session_state.pm_nomination_active = False
-    st.session_state.pm_nomination = None
-    st.session_state.presidential_election_active = False
-    st.session_state.presidential_election = None
     st.session_state.draft_data = None
     st.session_state.hand = []
     st.session_state.time_units = 3
     st.session_state.selected_card = None
     st.session_state.action_confirmation = None
     st.session_state.event_history = []
+    st.session_state.pending_event = None
 
     # DEBUG STUFF
     st.session_state.TARGET_1931 = copy.deepcopy(gd.TARGET_1931)
@@ -99,17 +99,19 @@ def apply_effects(effects_dict):
         elif k.startswith("modify_relation"):
             res = mech.modify_party_relation(st.session_state, v.get("source"), v.get("target"), v.get("amount"))
             if res: msg_log += f" | {res}"
-        elif k == "start_presidential_election":
-            st.session_state.presidential_election = mech.init_presidential_election(st.session_state)
-            st.session_state.presidential_election_active = True
-            st.session_state.current_event_id = None
         elif k == "start_pm_nomination":
-            st.session_state.pm_nomination = mech.init_pm_nomination(st.session_state)
+            nom = mech.init_pm_nomination(st.session_state)
+            nom['skip_draft'] = v.get('skip_draft', False) if isinstance(v, dict) else False
+            st.session_state.pm_nomination = nom
             st.session_state.pm_nomination_active = True
             st.session_state.current_event_id = None
         elif k == "start_negotiation":
             st.session_state.draft_data = mech.initialize_ministry_draft(st.session_state, st.session_state.government['coalition'])
             st.session_state.negotiation_active = True
+            st.session_state.current_event_id = None
+        elif k == "start_presidential_election":
+            st.session_state.presidential_election = mech.init_presidential_election(st.session_state)
+            st.session_state.presidential_election_active = True
             st.session_state.current_event_id = None
         elif k == "set_coalition":
             st.session_state.government['coalition'] = v
@@ -123,6 +125,43 @@ def apply_effects(effects_dict):
                 msg_log += " | The government has fallen!"
                 logs = apply_effects({"trigger_election": True})
                 msg_log += logs
+        # ── MILITARY EFFECTS ──────────────────────────────────────────────────
+        elif k == "army_officer_loyalty":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["officer_loyalty"] = max(0, min(100, army.get("officer_loyalty", 40) + v))
+        elif k == "army_soldier_loyalty":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["soldier_loyalty"] = max(0, min(100, army.get("soldier_loyalty", 60) + v))
+        elif k == "army_reform_progress":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["reform_progress"] = max(0, min(100, army.get("reform_progress", 0) + v))
+        elif k == "army_readiness":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["readiness"] = max(0, min(100, army.get("readiness", 20) + v))
+        elif k == "army_efficiency":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["efficiency"] = max(0, min(100, army.get("efficiency", 10) + v))
+        elif k == "army_officers_retired":
+            import random as _r
+            army = st.session_state.military.get("army_peninsular", {})
+            current = army.get("officers", 16000)
+            retired = int(current * _r.uniform(0.35, 0.45))
+            army["officers"] = current - retired
+            msg_log += f" | {retired:,} officers retire on full pension."
+        elif k == "army_capitanias_abolished":
+            st.session_state.military["army_peninsular"]["capitanias_active"] = False
+            msg_log += " | Capitanías Generales dissolved."
+        elif k == "army_zaragoza_closed":
+            st.session_state.military["army_peninsular"]["zaragoza_open"] = False
+            msg_log += " | Academia General Militar closed."
+        elif k == "assault_guard_created":
+            ag = st.session_state.security.get("assault_guard", {})
+            ag["manpower"] = 10000
+            ag["loyalty"] = 95
+            ag["equipment"] = 60
+            ag["readiness"] = 50
+            msg_log += " | Guardia de Asalto established."
+        # ── FALLBACK METRICS ──────────────────────────────────────────────────
         elif k in st.session_state.metrics: st.session_state.metrics[k] += v
         elif k in st.session_state.society: st.session_state.society[k] += v
         elif k == "budget_int": st.session_state.economy['budget_int'] += v
@@ -171,10 +210,10 @@ else:
         if st.button("Continue"):
             st.session_state.last_outcome_text = None
             st.session_state.vote_result = None
-            # Chain Logic für den Start
-            if st.session_state.current_event_id == "1931_election_night":
-                st.session_state.event_history.append("1931_election_night")
-                st.session_state.current_event_id = "1931_macia_declaration"
+            # If a chain was queued, fire it now
+            if st.session_state.get('pending_event'):
+                st.session_state.current_event_id = st.session_state.pending_event
+                st.session_state.pending_event = None
             st.rerun()
 
     # 2. ACTION CONFIRMATION
@@ -215,7 +254,7 @@ else:
         if ev_data:
             st.markdown(f"### 📜 {ev_data['title']}")
             if ev_data.get('date_str'): st.caption(ev_data['date_str'])
-            st.markdown(ev_data['text'])
+            st.markdown('\n'.join(line.lstrip() for line in ev_data['text'].splitlines()).strip())
             st.divider()
 
             if "election" in curr or curr == "generic_coalition_formation": 
@@ -237,14 +276,20 @@ else:
                         logs = apply_effects(res.get('effects', {}))
                         st.session_state.last_outcome_text = res['msg'] + logs
 
-                        next_event = None
-                        if curr == "1931_macia_declaration":
-                            next_event = None
-                        elif curr == "1931_cardinal_segura":
-                            next_event = None  # June elections now fire via monthly tick in June
+                        # Chain: queue the next event for after the feedback screen
+                        CHAIN = {
+                            "1931_election_night":               "1931_macia_declaration",
+                            "1931_macia_declaration":            "1931_proclamation_of_second_republic",
+                            "1931_proclamation_of_second_republic": "1931_provisional_government",
+                        }
+                        if curr in CHAIN:
+                            st.session_state.pending_event = CHAIN[curr]
 
-                        if "trigger_election" not in res.get('effects', {}) and "start_negotiation" not in res.get('effects', {}) and "start_pm_nomination" not in res.get('effects', {}) and "start_presidential_election" not in res.get('effects', {}):
-                            st.session_state.current_event_id = next_event
+                        if ("trigger_election" not in res.get('effects', {}) and
+                                "start_negotiation" not in res.get('effects', {}) and
+                                "start_pm_nomination" not in res.get('effects', {}) and
+                                "start_presidential_election" not in res.get('effects', {})):
+                            st.session_state.current_event_id = None
 
                         if curr not in st.session_state.get('event_history', []):
                             st.session_state.event_history.append(curr)
@@ -255,99 +300,6 @@ else:
         else:
             st.error(f"Event not found/mapped: {curr}")
 
-
-
-    # 3.4. PRESIDENTIAL ELECTION
-    elif st.session_state.get('presidential_election_active'):
-        pe = st.session_state.presidential_election
-        candidates = pe['candidates']
-        stage = pe['stage']
-        player_id = st.session_state.player_party
-
-        st.markdown("### 🏛️ Election of the President of the Republic")
-        st.caption(
-            "Under the 1931 Constitution, the President is elected by a joint assembly "
-            "of the Cortes and popular compromisarios. Each party casts its votes.")
-        st.divider()
-
-        if stage == "endorse":
-            st.markdown("**Which candidate does your party support?**")
-            for cand_id, cand in candidates.items():
-                c_party = gd.PARTIES.get(cand['party'], {})
-                c_color = c_party.get('color', '#888')
-                c_party_name = c_party.get('name', '')
-                st.markdown(
-                    f"<span style='color:{c_color}; font-weight:bold'>{cand['name']}</span> "
-                    f"<span style='color:#888'>({c_party_name})</span>",
-                    unsafe_allow_html=True)
-                st.caption(cand['description'])
-
-                # Show which parties support / oppose
-                sup_names = [gd.PARTIES.get(p, {}).get('name', p) for p in cand['support']
-                             if st.session_state.parliament['seats'].get(p, 0) > 0]
-                opp_names = [gd.PARTIES.get(p, {}).get('name', p) for p in cand['oppose']
-                             if st.session_state.parliament['seats'].get(p, 0) > 0]
-                if sup_names:
-                    st.caption(f"Expected support: {', '.join(sup_names)}")
-                if opp_names:
-                    st.caption(f"Expected opposition: {', '.join(opp_names)}")
-
-                if st.button(f"Endorse {cand['name']}", key=f"pres_{cand_id}"):
-                    pe['player_endorsement'] = cand_id
-                    pe['stage'] = "vote"
-                    st.rerun()
-                st.markdown("---")
-
-            if st.button("Abstain — cast no endorsement"):
-                pe['player_endorsement'] = None
-                pe['stage'] = "vote"
-                st.rerun()
-
-        elif stage == "vote":
-            if pe['vote_totals'] is None:
-                totals, winner_id, details = mech.simulate_presidential_vote(
-                    st.session_state, candidates, pe['player_endorsement'])
-                pe['vote_totals'] = totals
-                pe['winner_id'] = winner_id
-                pe['details'] = details
-                st.rerun()
-            else:
-                winner_id = pe['winner_id']
-                winner = candidates[winner_id]
-                w_party = gd.PARTIES.get(winner['party'], {})
-
-                st.success(
-                    f"✅ **{winner['name']}** elected President of the Republic "
-                    f"— {pe['vote_totals'][winner_id]} votes")
-
-                with st.expander("Full vote breakdown"):
-                    for d in pe['details']:
-                        st.markdown(
-                            f"<span style='color:{d['color']}'>■</span> "
-                            f"{d['party']}: {d['seats']} votes → {d['voted_for']}",
-                            unsafe_allow_html=True)
-                    st.divider()
-                    for cand_id, votes in sorted(pe['vote_totals'].items(), key=lambda x: -x[1]):
-                        cand = candidates[cand_id]
-                        marker = "👑 " if cand_id == winner_id else "   "
-                        st.caption(f"{marker}{cand['name']}: {votes} votes")
-
-                if st.button("Confirm & Form Government", type="primary"):
-                    # Assign winner to president_republic ministry
-                    if 'president_republic' in st.session_state.ministries:
-                        st.session_state.ministries['president_republic']['holder'] = winner['name']
-                        st.session_state.ministries['president_republic']['party'] = winner['party']
-                    # Vacate prime_minister since it's now open
-                    if 'prime_minister' in st.session_state.ministries:
-                        st.session_state.ministries['prime_minister']['holder'] = "Vacant"
-                        st.session_state.ministries['prime_minister']['party'] = st.session_state.player_party
-                    st.session_state.presidential_election_active = False
-                    # Now trigger PM nomination for the new constitutional government
-                    st.session_state.pm_nomination = mech.init_pm_nomination(st.session_state)
-                    st.session_state.pm_nomination_active = True
-                    st.rerun()
-
-    # 3.5. PM NOMINATION
     elif st.session_state.get('pm_nomination_active'):
         nom = st.session_state.pm_nomination
         candidates = nom['candidates']
@@ -485,6 +437,7 @@ else:
                         # Relations hit: coalition instability from failed investiture
                         st.session_state.metrics['coalition_stability'] -= 10
                         st.rerun()
+
 
     # 4. MINISTRY NEGOTIATION
     elif st.session_state.get('negotiation_active'):

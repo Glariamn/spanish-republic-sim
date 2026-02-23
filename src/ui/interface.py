@@ -681,6 +681,18 @@ def render_sidebar():
             st.session_state.current_event_id = "1931_june_elections"
             st.session_state.last_outcome_text = None
             st.rerun()
+        if st.button("JUMP TO: Presidential Election"):
+            import engine.mechanics as mech
+            st.session_state.presidential_election = mech.init_presidential_election(st.session_state)
+            st.session_state.presidential_election_active = True
+            st.session_state.current_event_id = None
+            st.session_state.last_outcome_text = None
+            st.rerun()
+        if st.button("JUMP TO: Constitution Ratified"):
+            st.session_state.current_event_id = "1931_constitution_ratified"
+            st.session_state.last_outcome_text = None
+            st.rerun()
+        st.caption(f"passed_laws: {st.session_state.passed_laws}")
 
 def render_government_actions(state):
     """Zeigt Aktionen an, die die Regierung direkt ausführen kann."""

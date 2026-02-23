@@ -47,7 +47,19 @@ def get_event_general_election(state):
     choices = []
     
     # 3. Optionen generieren
-    
+
+    # In 1931 the Constituent Cortes form — Zamora continues as PM during constitution drafting.
+    # No investiture vote: just form the coalition and reshuffle ministries.
+    # From 1933 onwards, a normal PM investiture applies.
+    is_constituent_1931 = (state.date.get('year') == 1931)
+    gov_key = "start_negotiation" if is_constituent_1931 else "start_pm_nomination"
+    gov_msg_suffix = (
+        "Alcalá-Zamora continues as Prime Minister while the Constitution is drafted. "
+        "The coalition distributes ministerial portfolios."
+        if is_constituent_1931 else
+        "Negotiations for a new Prime Minister begin."
+    )
+
     # A) Mehrheits-Koalitionen (Historisch definiert)
     for opt in opts:
         coalition_name = opt['type']['name']
@@ -60,11 +72,11 @@ def get_event_general_election(state):
                 "text": f"Accept Mandate: {coalition_name} ({seats} Seats)",
                 "tooltip": "Form a majority government. High Stability.",
                 "success": {
-                    "msg": f"President Alcalá-Zamora entrusts you with forming the government. Negotiations begin.",
+                    "msg": f"President Alcalá-Zamora entrusts you with forming the government. {gov_msg_suffix}",
                     "effects": {
                         "set_coalition": partners,
-                        "start_pm_nomination": True,
-                        "coalition_stability": 20 # Start-Bonus
+                        gov_key: True,
+                        "coalition_stability": 20
                     }
                 }
             })
@@ -77,16 +89,16 @@ def get_event_general_election(state):
                 "text": f"Join Coalition led by {leader_name} ({seats} Seats)",
                 "tooltip": "Join as a junior partner. You will have less influence over ministries.",
                 "success": {
-                    "msg": f"We have agreed to support the {leader_name}. The portfolio distribution begins.",
+                    "msg": f"We have agreed to support {leader_name}. {gov_msg_suffix}",
                     "effects": {
                         "set_coalition": partners,
-                        "start_pm_nomination": True,
-                        "modify_faction": {"tag": "radical", "amount": 10} # Radikale mögen es nicht, Junior zu sein
+                        gov_key: True,
+                        "modify_faction": {"tag": "radical", "amount": 10}
                     }
                 }
             })
     
-    # B) Minderheitsregierung (Falls wir die größte Partei sind, aber keine Koalition passt)
+    # B) Minderheitsregierung
     player_seats = state.parliament['seats'].get(state.player_party, 0)
     largest_party_id = max(state.parliament['seats'], key=state.parliament['seats'].get)
     
@@ -95,11 +107,11 @@ def get_event_general_election(state):
             "text": "Attempt Minority Government",
             "tooltip": "Risky! You have no majority. Stability will start very low.",
             "success": {
-                "msg": "The President reluctantly asks you to govern alone until a majority can be found.",
+                "msg": f"The President reluctantly asks you to govern alone. {gov_msg_suffix}",
                 "effects": {
                     "set_coalition": [state.player_party],
-                    "start_negotiation": True, # Du verteilst Ministerien nur an dich selbst
-                    "coalition_stability": -20 # Startet instabil!
+                    gov_key: True,
+                    "coalition_stability": -20
                 }
             }
         })

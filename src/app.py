@@ -12,7 +12,7 @@ import content.events.historical.military_reform_event as mil_ev
 from engine.mechanics.parliament import resolve_vote
 from content.issue_effects import get_issue_effects
 
-# --- 1. EVENT MAP (Korrigiert auf Klassen) ---
+# --- 1. EVENT MAP ---
 EVENT_MAP = {
     # Historical events — April 1931 chain
     "1931_election_night":                   ev31.AprilElectionNightEvent,
@@ -100,12 +100,18 @@ def apply_effects(effects_dict):
             res = mech.modify_party_relation(st.session_state, v.get("source"), v.get("target"), v.get("amount"))
             if res: msg_log += f" | {res}"
         elif k == "start_pm_nomination":
-            st.session_state.pm_nomination = mech.init_pm_nomination(st.session_state)
+            nom = mech.init_pm_nomination(st.session_state)
+            nom['skip_draft'] = v.get('skip_draft', False) if isinstance(v, dict) else False
+            st.session_state.pm_nomination = nom
             st.session_state.pm_nomination_active = True
             st.session_state.current_event_id = None
         elif k == "start_negotiation":
             st.session_state.draft_data = mech.initialize_ministry_draft(st.session_state, st.session_state.government['coalition'])
             st.session_state.negotiation_active = True
+            st.session_state.current_event_id = None
+        elif k == "start_presidential_election":
+            st.session_state.presidential_election = mech.init_presidential_election(st.session_state)
+            st.session_state.presidential_election_active = True
             st.session_state.current_event_id = None
         elif k == "set_coalition":
             st.session_state.government['coalition'] = v
@@ -119,11 +125,49 @@ def apply_effects(effects_dict):
                 msg_log += " | The government has fallen!"
                 logs = apply_effects({"trigger_election": True})
                 msg_log += logs
+        # ── MILITARY EFFECTS ──────────────────────────────────────────────────
+        elif k == "army_officer_loyalty":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["officer_loyalty"] = max(0, min(100, army.get("officer_loyalty", 40) + v))
+        elif k == "army_soldier_loyalty":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["soldier_loyalty"] = max(0, min(100, army.get("soldier_loyalty", 60) + v))
+        elif k == "army_reform_progress":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["reform_progress"] = max(0, min(100, army.get("reform_progress", 0) + v))
+        elif k == "army_readiness":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["readiness"] = max(0, min(100, army.get("readiness", 20) + v))
+        elif k == "army_efficiency":
+            army = st.session_state.military.get("army_peninsular", {})
+            army["efficiency"] = max(0, min(100, army.get("efficiency", 10) + v))
+        elif k == "army_officers_retired":
+            import random as _r
+            army = st.session_state.military.get("army_peninsular", {})
+            current = army.get("officers", 16000)
+            retired = int(current * _r.uniform(0.35, 0.45))
+            army["officers"] = current - retired
+            msg_log += f" | {retired:,} officers retire on full pension."
+        elif k == "army_capitanias_abolished":
+            st.session_state.military["army_peninsular"]["capitanias_active"] = False
+            msg_log += " | Capitanías Generales dissolved."
+        elif k == "army_zaragoza_closed":
+            st.session_state.military["army_peninsular"]["zaragoza_open"] = False
+            msg_log += " | Academia General Militar closed."
+        elif k == "assault_guard_created":
+            ag = st.session_state.security.get("assault_guard", {})
+            ag["manpower"] = 10000
+            ag["loyalty"] = 95
+            ag["equipment"] = 60
+            ag["readiness"] = 50
+            msg_log += " | Guardia de Asalto established."
+        # ── ECONOMIC EFFECTS ──────────────────────────────────────────────────
         elif k in st.session_state.metrics: st.session_state.metrics[k] += v
         elif k in st.session_state.society: st.session_state.society[k] += v
         elif k == "budget_int": st.session_state.economy['budget_int'] += v
         elif k == "public_order": st.session_state.metrics['public_order'] += v
         elif k == "add_law": st.session_state.passed_laws.add(v)
+        elif k == "add_law_2": st.session_state.passed_laws.add(v)
         elif k == "rename_party":
             p = v["party"]
             new = v["new_name"]

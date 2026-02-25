@@ -1592,13 +1592,16 @@ STATE_START = {
     "military": {
         "army_peninsular": {
             "name": "Peninsular Army", 
-            "officers": 16000,          # Konkrete Zahl
+            "officers": 16000,          # Konkrete Zahl (~1 officer per 6.5 soldiers — bloated from colonial era)
             "soldiers": 105000,         # Konkrete Zahl
-            "officer_loyalty": 40,      # Loyalität der Offiziere
-            "soldier_loyalty": 60,      # Loyalität der Truppen
+            "officer_loyalty": 40,      # Loyalität der Offiziere (0–100)
+            "soldier_loyalty": 60,      # Loyalität der Truppen (0–100)
             "equipment_quality": 40,    # 0-100 Abstraktion
-            "efficiency": 10,         # 0-100 Abstraktion
-            "readiness": 20            # Organisation & Doktrin
+            "efficiency": 10,           # 0-100 Abstraktion
+            "readiness": 20,            # Organisation & Doktrin
+            "reform_progress": 0,       # 0–100: unlocks sequential reform cards
+            "capitanias_active": True,  # Capitanías Generales still exist
+            "zaragoza_open": True,      # Academia General Militar still open
         },
         "army_africa": {
             "name": "Army of Africa",
@@ -1875,7 +1878,7 @@ COALITION_DEFINITIONS = [
 # Format: "PartyID": {"MinistryKey": ["Name1", "Name2"]}
 PARTY_MINISTERS = {
     PARTY_PSOE: {
-        "prime_minister": ["Largo Caballero"],
+        "prime_minister": ["Indalecio Prieto", "Julián Besteiro", "Largo Caballero"],
         "labor": ["Largo Caballero", "Indalecio Prieto"],
         "finance": ["Indalecio Prieto", "Juan Negrín"],
         "justice": ["Fernando de los Ríos"],
@@ -1896,6 +1899,7 @@ PARTY_MINISTERS = {
     },
     PARTY_DLR: {
         "president_republic": ["Niceto Alcalá-Zamora"],
+        "prime_minister": ["Niceto Alcalá-Zamora"],
         "interior": ["Miguel Maura"],
         "war": ["Maura (Interim)"]
     },

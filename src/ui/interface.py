@@ -366,17 +366,36 @@ def render_election_comparison():
                 st.write("---")
     st.divider()
 
+# Map of player party -> affiliated orgs for the Par tab
+_PARTY_ORGS = {
+    gd.PARTY_PSOE:  [("ugt", "UGT"), ("js_psoe", "Juv. Socialistas")],
+    gd.PARTY_AR:    [("ateneos", "Ateneos Rep.")],
+    gd.PARTY_PRR:   [("ateneos", "Ateneos Rep.")],
+    gd.PARTY_PRRS:  [("ugt", "UGT"), ("ateneos", "Ateneos Rep.")],
+    gd.PARTY_CNT:   [("cnt", "CNT"), ("fai", "FAI"), ("juv_lib", "Juv. Libertarias")],
+}
+
 def render_sidebar():
     """Die Seitenleiste."""
-    st.sidebar.markdown(f"## {st.session_state.date['month']}/{st.session_state.date['year']}")
+    state = st.session_state  # Replace st.session_state with this if needed (isn't needed for now)
+
+    stability = st.session_state.metrics.get("coalition_stability", 50)
+    stab_dot = "🟢" if stability >= 60 else ("🟡" if stability >= 35 else "🔴")
     
     party = gd.PARTIES[st.session_state.player_party]
-    st.sidebar.caption("Gobierno (Head of Govt.)")
-    st.sidebar.markdown(f'<h3 style="color: {party["color"]}; margin-top: -15px;">{party["name"]}</h3>', unsafe_allow_html=True)
+
+    # --- Header ---
+    col1, col2 = st.sidebar.columns([3, 2])
+    col1.markdown(f"## {st.session_state.date['month']}/{st.session_state.date['year']}")
+    col2.markdown(f"<div style='text-align:right; padding-top:12px'>{stab_dot} {st.session_state.metrics.get('coalition_stability')}</div>",
+                  unsafe_allow_html=True)
+    st.sidebar.markdown(
+        f'<span style="color:{party["color"]}; font-weight:bold; font-size:1.1em">{party["name"]}</span> ' 
+        f'<span style="color:#888; font-size:0.85em">— Gobierno</span>',
+        unsafe_allow_html=True)
     
-    st.sidebar.write("---")
-    
-    tab_eco, tab_soc, tab_sec, tab_mil, tab_wor = st.sidebar.tabs(["Eco", "Soc", "Sec", "Mil", "World"])
+    tab_eco, tab_soc, tab_sec, tab_mil, tab_pol, tab_par, tab_wor = st.sidebar.tabs(
+        ["Eco", "Soc", "Sec", "Mil", "Pol", "Par", "World"])
     
     with tab_eco:
         eco = st.session_state.economy
@@ -498,6 +517,145 @@ def render_sidebar():
         st.caption(f"Oficiales: {get_loyalty_label(nav['officer_loyalty'])}")
         st.caption(f"Marineros: {get_loyalty_label(nav['sailor_loyalty'])}")
 
+    # ── POL — Parliamentary Politics ─────────────────────────────────────────
+    with tab_pol:
+        player_id = st.session_state.player_party
+        player_data = st.session_state.parties.get(player_id, {})
+        coalition = st.session_state.government['coalition']
+        all_seats = st.session_state.parliament['seats']
+
+        # Coalition partners
+        st.caption("**Coalición**")
+        for p_id in coalition:
+            if p_id == player_id:
+                continue
+            p_data = gd.PARTIES.get(p_id, gd.PARTIES['others'])
+            rel = st.session_state.parties.get(p_id, {}).get("relations", {}).get(player_id, 50)
+            seats = all_seats.get(p_id, 0)
+            c1, c2, c3 = st.columns([4, 2, 2])
+            c1.markdown(f"<span style='color:{p_data['color']}'>{p_data['name']}</span>",
+                        unsafe_allow_html=True)
+            c2.caption(f"{seats}s")
+            c3.caption(f"{_rel_dot(rel)} {rel}")
+
+        st.divider()
+
+        # Opposition
+        st.caption("**Oposición**")
+        for p_id, seats in sorted(all_seats.items(), key=lambda x: -x[1]):
+            if seats == 0 or p_id in coalition:
+                continue
+            p_data = gd.PARTIES.get(p_id, gd.PARTIES['others'])
+            rel = player_data.get("relations", {}).get(p_id, 50)
+            c1, c2, c3 = st.columns([4, 2, 2])
+            c1.markdown(f"<span style='color:{p_data['color']}'>{p_data['name']}</span>",
+                        unsafe_allow_html=True)
+            c2.caption(f"{seats}s")
+            c3.caption(f"{_rel_dot(rel)} {rel}")
+
+        st.divider()
+
+        # Organisations
+        st.caption("**Organizations**")
+        for org_id, org in st.session_state.organizations.items():
+            rep_rel = org.get("republic_relation", 50)
+            mob = org.get("mobilization", 0)
+            c1, c2, c3 = st.columns([4, 2, 2])
+            c1.caption(org['name'].split("(")[0].strip()[:18])
+            c2.caption(f"Mob {mob}")
+            c3.caption(f"{_rel_dot(rep_rel)}")
+
+        st.divider()
+
+        # Passed laws / constitution
+        laws = st.session_state.passed_laws
+        if laws:
+            st.caption("**Passed Laws**")
+            law_labels = {
+                "const_suffrage":       "✅ Art.36 Sufragio Universal",
+                "const_suffrage_limited":"⚠️ Art.36 Sufragio Limitado",
+                "const_art_26_radical": "✅ Art.26 Laicismo Radical",
+                "const_art_26_moderate":"⚠️ Art.26 Laicismo Moderado",
+                "const_art_27_strict":  "✅ Art.27 Laicismo Pleno",
+                "const_art_27_moderate":"⚠️ Art.27 Conciencia Libre",
+                "const_art_43":         "✅ Art.43 Divorcio Civil",
+                "const_art_43_restricted":"⚠️ Art.43 Matrimonio Civil",
+                "const_art_44_social":  "✅ Art.44 Expropiación Social",
+                "const_art_44_liberal": "⚠️ Art.44 Propiedad Privada",
+                "const_art_48_secular": "✅ Art.48 Educación Secular",
+                "const_art_48_mixed":   "⚠️ Art.48 Ed. Mixta",
+                "constitution_active":  "📜 Constitución Activa",
+            }
+            for law_id, label in law_labels.items():
+                if law_id in laws:
+                    st.caption(label)
+
+    # ── PAR — Party Politics ─────────────────────────────────────────────────
+    with tab_par:
+        player_id = st.session_state.player_party
+        player_data = st.session_state.parties.get(player_id, {})
+        p_meta = gd.PARTIES.get(player_id, {})
+
+        st.markdown(
+            f'<span style="color:{p_meta.get("color","#fff")}; font-weight:bold">' +
+            p_meta.get("full_name", p_meta.get("name","")) +
+            '</span>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        c1.caption(f"Members: {p_meta.get('members',0):,}")
+        c2.caption(f"Inst.: {p_meta.get('institutionalization',0)}/100")
+
+        # Factions
+        st.divider()
+        st.caption("**Factions**")
+        factions = player_data.get("factions", {})
+        for f_id, fdata in factions.items():
+            name = fdata.get("name", f_id)
+            strength = fdata.get("strength", 0)
+            dissent = fdata.get("dissent", 0)
+            # Obfuscate strength into rough label
+            if strength >= 70:   str_label = "Dominant"
+            elif strength >= 50: str_label = "Strong"
+            elif strength >= 30: str_label = "Divided"
+            else:                str_label = "Marginal"
+            st.caption(f"**{name}**")
+            st.caption(f"Strength: {str_label}")
+            st.caption(f"Dissent:  {_dissent_bar(dissent)}")
+
+        # Affiliated orgs
+        st.divider()
+        st.caption("**Affiliated Organizations**")
+        affiliated = _PARTY_ORGS.get(player_id, [])
+        if affiliated:
+            for org_id, org_label in affiliated:
+                org = st.session_state.organizations.get(org_id, {})
+                members = org.get("members", 0)
+                mob = org.get("mobilization", 0)
+                mil_lvl = org.get("militarization", 0)
+                c1, c2 = st.columns([3, 3])
+                c1.caption(f"**{org_label}**")
+                c2.caption(f"{members:,} mbrs")
+                c1.caption(f"Mob: {mob} | Mil: {mil_lvl}")
+        else:
+            st.caption("—")
+
+        # Relations to other parties (from player party's perspective)
+        st.divider()
+        st.caption("**Party Relations**")
+        my_relations = player_data.get("relations", {})
+        for p_id, rel_val in sorted(my_relations.items(), key=lambda x: -x[1]):
+            if p_id in ("church", "army"):
+                label = "Iglesia" if p_id == "church" else "Ejército"
+                st.caption(f"{_rel_dot(rel_val)} {label}: {rel_val}")
+            else:
+                p_data = gd.PARTIES.get(p_id, {})
+                if not p_data:
+                    continue
+                name = p_data.get("name", p_id)
+                color = p_data.get("color", "#888")
+                st.markdown(
+                    f"<small>{_rel_dot(rel_val)} <span style='color:{color}'>{name}</span>: {rel_val}</small>",
+                    unsafe_allow_html=True)
+    
     with tab_wor:
         diplo = st.session_state.diplomacy
 
@@ -541,6 +699,18 @@ def render_sidebar():
             st.session_state.current_event_id = "1931_june_elections"
             st.session_state.last_outcome_text = None
             st.rerun()
+        if st.button("JUMP TO: Presidential Election"):
+            import engine.mechanics as mech
+            st.session_state.presidential_election = mech.init_presidential_election(st.session_state)
+            st.session_state.presidential_election_active = True
+            st.session_state.current_event_id = None
+            st.session_state.last_outcome_text = None
+            st.rerun()
+        if st.button("JUMP TO: Constitution Ratified"):
+            st.session_state.current_event_id = "1931_constitution_ratified"
+            st.session_state.last_outcome_text = None
+            st.rerun()
+        st.caption(f"passed_laws: {st.session_state.passed_laws}")
 
 def render_government_actions(state):
     """Zeigt Aktionen an, die die Regierung direkt ausführen kann."""
@@ -770,3 +940,29 @@ def render_region_summary(state):
             for _, row in sub.iterrows()
         ]
         st.write(f"**{region}:** " + ", ".join(parts))
+
+def _rel_dot(val):
+    """Colored dot for relation values."""
+    if val >= 70: return "🟢"
+    if val >= 45: return "🟡"
+    return "🔴"
+
+def _loyalty_dot(val):
+    if val >= 70: return "🟢"
+    if val >= 40: return "🟡"
+    return "🔴"
+
+def _dissent_bar(dissent):
+    """Mini ASCII dissent bar. High dissent = danger."""
+    filled = round(dissent / 10)
+    color = "🔴" if dissent >= 60 else ("🟡" if dissent >= 35 else "🟢")
+    return f"{color} {'█' * filled}{'░' * (10 - filled)} {dissent}"
+
+# Map of player party -> affiliated orgs for the Par tab
+_PARTY_ORGS = {
+    gd.PARTY_PSOE:  [("ugt", "UGT"), ("js_psoe", "Juv. Socialistas")],
+    gd.PARTY_AR:    [("ateneos", "Ateneos Rep.")],
+    gd.PARTY_PRR:   [("ateneos", "Ateneos Rep.")],
+    gd.PARTY_PRRS:  [("ugt", "UGT"), ("ateneos", "Ateneos Rep.")],
+    gd.PARTY_CNT:   [("cnt", "CNT"), ("fai", "FAI"), ("juv_lib", "Juv. Libertarias")],
+}

@@ -42,16 +42,16 @@ ATENEOS = "ateneos"          # Intelligentia clubs
 # Historical Cabinet of the Provisional Government (April 1931)
 MINISTRIES = {
     "president_republic": {
-        "name": "Presidente de la República",
-        "holder": "Niceto Alcalá-Zamora",
+        "name": "Presidente",
+        "holder": "Vacant (Interim)",
         "party": PARTY_DLR,
-        "desc": "Head of State. Elected by parliament. Not a cabinet position — cannot be claimed in the draft."
+        "desc": "President of the Republic."
     },
     "prime_minister": {
         "name": "Presidente del Gobierno",
         "holder": "Niceto Alcalá-Zamora",
         "party": PARTY_DLR,
-        "desc": "Head of Government. Confirmed by investiture vote."
+        "desc": "Head of State & Government. Has veto power and can dissolve the Cortes."
     },
     "war": {
         "name": "Ministerio de la Guerra",
@@ -1361,7 +1361,83 @@ STATE_START = {
         "global_economy_state": "Great Depression", # Text-Status
         "arable_land": 20.5, 
         "industrial_output": 40,    # 0-100 (Katalonien/Baskenland sind das Herz)
-        "trade_balance": -5         # Negativ = Importüberschuss
+        "trade_balance": -5,        # Negativ = Importüberschuss
+
+        # ── FISCAL STRUCTURE ──────────────────────────────────────────────────
+        # Spain 1931: total budget ~3.5bn pesetas.
+        # Revenue composition (approximate):
+        #   ~45% indirect (consumos, tobacco, alcohol, stamp duties)
+        #   ~20% customs/tariffs
+        #   ~25% direct (land tax, industrial tax, income tax)
+        #   ~10% state monopolies (tobacco, CAMPSA, matches)
+        #
+        # Key structural problem: rates existed on paper but collection was
+        # broken by caciquismo, an inaccurate cadastre, and systemic evasion.
+        # Reforming the BASE (who is registered, who can be collected from)
+        # matters more than raising rates on an empty registry.
+        "taxation": {
+
+            # ── RATES (%) ────────────────────────────────────────────────────
+            # What the law says. Actual collection depends on structure below.
+
+            "consumption_tax_rate": 8,
+            # Indirect taxes on goods — tobacco, alcohol, sugar, stamp duties.
+            # Regressive: hits workers hardest. The single largest revenue source.
+            # Raising this angers workers, raises revenue reliably (harder to evade).
+
+            "income_tax_rate": 3,
+            # Impuesto de utilidades. Exists on paper, barely enforced.
+            # The wealthy are not registered. Collection is near-zero.
+            # Raising the rate without fixing collection produces almost nothing.
+
+            "land_tax_rate": 5,
+            # Contribución territorial. Applied to cadastral values —
+            # which latifundistas have kept massively understated for generations.
+            # Raising this is useless until cadastre_coverage improves.
+
+            "customs_rate": 15,
+            # Primo de Rivera legacy protectionism. Protects Basque steel and
+            # Catalan textiles but raises consumer prices. Reducing it angers
+            # industrialists; raising it triggers foreign retaliation.
+
+            # ── STRUCTURAL PARAMETERS (0–100) ────────────────────────────────
+            # These determine how much of theoretical revenue actually reaches
+            # the treasury. The core problem is here, not in the rates.
+
+            "cadastre_coverage": 28,
+            # % of taxable land accurately registered at real value.
+            # Latifundistas have manipulated this for generations — large estates
+            # are registered at ~15% of real value. At 28%, the land tax base
+            # is a fiction. Reforming this is the prerequisite for meaningful
+            # direct tax revenue and the prerequisite for land reform itself.
+
+            "collection_efficiency": 45,
+            # % of theoretically owed tax actually collected.
+            # Affected by judicial loyalty, caciquismo, administrative capacity,
+            # and literacy (formal economy participation). Even correct rates
+            # and a full cadastre collect little if this stays low.
+            # Improving it requires judiciary reform and state-building.
+
+            "tax_admin_capacity": 35,
+            # State's ability to audit, enforce, and pursue evasion.
+            # Distinct from collection_efficiency (which is the outcome);
+            # this is the institutional capability. Requires investment.
+
+            # ── EXEMPTIONS (boolean) ─────────────────────────────────────────
+
+            "church_exempt": True,
+            # Church pays essentially nothing — no income tax, no land tax.
+            # Property registered under religious orders is off the books.
+            # Removed by secularization legislation (Art.26/Art.27).
+            # Affects ~8% of total land base; more importantly signals
+            # who bears the burden of the state.
+
+            "latifundio_undervalued": True,
+            # Large estates registered at ~15% of real value.
+            # Specific form of cadastre failure, but tracked separately
+            # because fixing it (vs. full cadastre reform) is politically
+            # distinct. Removing this directly threatens the aristocracy.
+        },
     },
 
     # DEMOGRAPHIE (Langsame Stats)
@@ -1440,7 +1516,7 @@ STATE_START = {
     "government": {
         "coalition": [PARTY_PSOE, PARTY_AR, PARTY_DLR, PARTY_PRR],
         "is_minority": False,
-        "next_election_date": {"year": 1931, "month": 6},
+        "next_election_date": { "year": 1931, "month": 6 }, 
         "term_length": 48
     },
 
@@ -1464,13 +1540,22 @@ STATE_START = {
 
     # DIPLOMATIE (Beziehungen 0-100)
     "diplomacy": {
-        "uk": 50,           # Neutral / Wary
-        "france": 60,       # Sympathisch (aber noch konservative Regierung)
-        "usa": 50,          # Isolationistisch
-        "germany": 45,      # Weimarer Republik (noch)
-        "italy": 30,        # Mussolini (mag keine Demokraten)
-        "ussr": 20,         # Keine offiziellen Beziehungen
-        "vatican": 10       # Feindselig wegen Säkularisierung
+        # Major powers
+        "uk":       50,     # Neutral, cautious. City of London holds Spanish debt.
+        "france":   60,     # Sympathetic but conservative Tardieu govt (1931).
+                            # Shifts with Popular Front (1936). Key border for arms.
+        "usa":      50,     # Isolationist. Depression-focused. No strategic Spain interest.
+        "germany":  45,     # Weimar Republic for now. Collapses Jan 1933. Track carefully.
+        "italy":    30,     # Mussolini hostile to democratic republics from day one.
+        "ussr":     20,     # No official relations yet. Normalized 1933. PCE conduit.
+        "vatican":  10,     # Openly hostile. Secularization = existential threat.
+        # Neighbours and key partners
+        "portugal": 35,     # Salazar tightening grip (Estado Novo 1933). Actively hostile.
+                            # Later allows Axis military transit to Franco.
+        "mexico":   85,     # Immediate recognition. Only country to legally sell arms
+                            # to the Republic in 1936. Critical future relationship.
+        # Multilateral
+        "league_of_nations": 65,  # Spain is a member. Moderate standing.
     },
 
     # KERN-METRIKEN (Abstrakt)
@@ -1507,16 +1592,13 @@ STATE_START = {
     "military": {
         "army_peninsular": {
             "name": "Peninsular Army", 
-            "officers": 16000,          # Konkrete Zahl (~1 officer per 6.5 soldiers — bloated from colonial era)
+            "officers": 16000,          # Konkrete Zahl
             "soldiers": 105000,         # Konkrete Zahl
-            "officer_loyalty": 40,      # Loyalität der Offiziere (0–100)
-            "soldier_loyalty": 60,      # Loyalität der Truppen (0–100)
+            "officer_loyalty": 40,      # Loyalität der Offiziere
+            "soldier_loyalty": 60,      # Loyalität der Truppen
             "equipment_quality": 40,    # 0-100 Abstraktion
-            "efficiency": 10,           # 0-100 Abstraktion
-            "readiness": 20,            # Organisation & Doktrin
-            "reform_progress": 0,       # 0–100: unlocks sequential reform cards
-            "capitanias_active": True,  # Capitanías Generales still exist
-            "zaragoza_open": True,      # Academia General Militar still open
+            "efficiency": 10,         # 0-100 Abstraktion
+            "readiness": 20            # Organisation & Doktrin
         },
         "army_africa": {
             "name": "Army of Africa",
@@ -1793,19 +1875,20 @@ COALITION_DEFINITIONS = [
 # Format: "PartyID": {"MinistryKey": ["Name1", "Name2"]}
 PARTY_MINISTERS = {
     PARTY_PSOE: {
-        "prime_minister": ["Indalecio Prieto", "Julián Besteiro"],  # PSOE historically refused the PM role
+        "prime_minister": ["Largo Caballero"],
         "labor": ["Largo Caballero", "Indalecio Prieto"],
         "finance": ["Indalecio Prieto", "Juan Negrín"],
         "justice": ["Fernando de los Ríos"],
-        "interior": ["Julian Besteiro"]
+        "interior": ["Julian Besteiro"] # Hypothetisch
     },
     PARTY_AR: {
-        "prime_minister": ["Manuel Azaña"],
         "war": ["Manuel Azaña"],
+        "prime_minister": ["Manuel Azaña"],
         "state": ["Claudio Sánchez-Albornoz"],
         "finance": ["Jaime Carner"]
     },
     PARTY_PRR: { # Radicals
+        "prime_minister": ["Alejandro Lerroux"],
         "state": ["Alejandro Lerroux"],
         "interior": ["Rafael Salazar Alonso", "Diego Martínez Barrio", "Ricardo Samper"],
         "finance": ["Joaquín Chapaprieta"],
@@ -1813,12 +1896,10 @@ PARTY_MINISTERS = {
     },
     PARTY_DLR: {
         "president_republic": ["Niceto Alcalá-Zamora"],
-        "prime_minister": ["Niceto Alcalá-Zamora"],
         "interior": ["Miguel Maura"],
         "war": ["Maura (Interim)"]
     },
     PARTY_PRRS: {
-        "prime_minister": ["Marcelino Domingo", "Álvaro de Albornoz"],
         "agriculture": ["Marcelino Domingo", "Álvaro de Albornoz"],
         "justice": ["Álvaro de Albornoz"],
         "state": ["Marcelino Domingo"],

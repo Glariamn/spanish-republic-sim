@@ -13,6 +13,7 @@ from content.initiatives.politics.coalition_crisis import CoalitionCrisisEvent
 from content.initiatives.party.faction_schism import FactionSchismEvent
 from content.events.historical.burning_convents import BurningConventsEvent
 from content.events.system.confidence_vote import ConfidenceVoteEvent
+from content.events.historical.military_reform_event import LeyAzanaEvent
 from content.events.historical.events_1931 import (
     MaciaDeclarationEvent, CardinalSeguraEvent, JuneElectionsEvent,
     ProclamationOfSecondRepublicEvent, ProvisionalGovernmentEvent
@@ -21,7 +22,6 @@ from content.events.historical.constitution_events import (
     LerrouxExitEvent, Constitution26CrisisEvent, ConstitutionCrisis27Event,
     ConstitutionCrisis44Event, ConstitutionRatifiedEvent
 )
-from content.events.historical.military_reform_event import LeyAzanaEvent
 
 def calculate_outcome(base_chance, modifiers, game_state):
     current_chance = base_chance
@@ -87,7 +87,7 @@ def process_monthly_tick(state):
     entropy_msg = apply_entropy(state)
 
     # 1. Historical Event Check
-    # Each event guards itself with event_history so it only fires once.
+    # Guards prevent re-firing if already in event_history
     historical_id = None
     y, m = state.date['year'], state.date['month']
     history = state.get('event_history', [])
@@ -125,15 +125,14 @@ def process_monthly_tick(state):
 
     # Dynamic Events Check
     possible_events = [
-        # Dynamic / crisis events
         FactionSchismEvent(state),
         BurningConventsEvent(state),
         CoalitionCrisisEvent(state),
         ConfidenceVoteEvent(state),
-        # Historical events that fire via dynamic check (not hardcoded above)
+        # Historical — fire dynamically (should_trigger guards them)
         JuneElectionsEvent(state),
-        LeyAzanaEvent(state),                # May 1931+, when AR holds War
-        LerrouxExitEvent(state),             # Oct 1931
+        LeyAzanaEvent(state),
+        LerrouxExitEvent(state),
         Constitution26CrisisEvent(state),
         ConstitutionCrisis27Event(state),
         ConstitutionCrisis44Event(state),

@@ -390,6 +390,68 @@ else:
         else:
             st.error(f"Event not found/mapped: {curr}")
 
+    elif st.session_state.get('presidential_election_active'):
+        pe = st.session_state.presidential_election
+        stage = pe['stage']
+
+        st.markdown("### 🏛️ Election of the President of the Republic")
+        st.caption("The Cortes Constituyentes convene to elect the first constitutional President.")
+        st.divider()
+
+        if stage == "endorse":
+            st.markdown("**The Republic needs a head of state. Which candidate will your party back?**")
+            st.markdown("")
+            for cand_id, cand in pe['candidates'].items():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    party_name = gd.PARTIES.get(cand['party'], {}).get('name', '')
+                    st.markdown(f"**{cand['name']}** — *{party_name}*")
+                    st.caption(cand['description'])
+                with col2:
+                    if st.button(f"Endorse", key=f"pres_{cand_id}"):
+                        pe['player_endorsement'] = cand_id
+                        pe['stage'] = "vote"
+                        st.rerun()
+            st.markdown("---")
+            if st.button("Abstain from endorsement"):
+                pe['player_endorsement'] = None
+                pe['stage'] = "vote"
+                st.rerun()
+
+        elif stage == "vote":
+            if pe['vote_totals'] is None:
+                totals, winner_id, details = mech.simulate_presidential_vote(
+                    st.session_state, pe['candidates'], pe['player_endorsement'])
+                pe['vote_totals'] = totals
+                pe['winner_id'] = winner_id
+                pe['details'] = details
+                st.rerun()
+            else:
+                winner = pe['candidates'][pe['winner_id']]
+                st.success(f"✅ **{winner['name']} elected as President of the Republic**")
+                st.markdown("")
+
+                with st.expander("Vote breakdown"):
+                    for d in pe['details']:
+                        st.markdown(
+                            f"<span style='color:{d['color']}'>■</span> **{d['party']}**: "
+                            f"{d['seats']} votes → {d['voted_for']}",
+                            unsafe_allow_html=True)
+
+                if st.button("Confirm & Form New Government", type="primary"):
+                    # Install President
+                    if 'president_republic' in st.session_state.ministries:
+                        st.session_state.ministries['president_republic']['holder'] = winner['name']
+                        st.session_state.ministries['president_republic']['party'] = winner['party']
+                    if 'prime_minister' in st.session_state.ministries:
+                        st.session_state.ministries['prime_minister']['holder'] = "Vacant"
+                    st.session_state.presidential_election_active = False
+                    # Trigger PM nomination for the new constitutional government
+                    nom = mech.init_pm_nomination(st.session_state)
+                    st.session_state.pm_nomination = nom
+                    st.session_state.pm_nomination_active = True
+                    st.rerun()
+
     elif st.session_state.get('pm_nomination_active'):
         nom = st.session_state.pm_nomination
         candidates = nom['candidates']

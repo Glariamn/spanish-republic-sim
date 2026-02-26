@@ -5,4 +5,4 @@ from .factions import modify_faction_dissent, execute_faction_split, modify_part
 from .parliament import calculate_parliament_vote, calculate_confidence_vote
 from .pm_nomination import get_pm_candidates, get_wavering_parties, simulate_investiture_vote, apply_nomination_relation_effects, init_pm_nomination
 
-from .presidential_election import init_presidential_election, simulate_presidential_vote, get_presidential_candidates_in_race, PRESIDENTIAL_CANDIDATES
+from .presidential_election import init_presidential_election, simulate_presidential_vote, PRESIDENTIAL_CANDIDATES

@@ -6,6 +6,7 @@ import content.game_data as gd
 import random
 
 class LerrouxExitEvent(GameEvent):
+    EVENT_ID = "1931_lerroux_exit"
     def should_trigger(self):
         is_date = self.state.date['year'] == 1931 and self.state.date['month'] == 10
         is_in_gov = gd.PARTY_PRR in self.state.government['coalition']
@@ -64,6 +65,7 @@ class LerrouxExitEvent(GameEvent):
 
 
 class Constitution26CrisisEvent(GameEvent):
+    EVENT_ID = "1931_constitution_26_crisis"
     """
     Fires after the radical version of Art. 26 passes a parliamentary vote.
     This is NOT a re-vote on the article -- that is done. This is the political
@@ -239,6 +241,7 @@ class Constitution26CrisisEvent(GameEvent):
 
 
 class ConstitutionCrisis27Event(GameEvent):
+    EVENT_ID = "1931_constitution_27_crisis"
     """
     Fires after Art. 27 (strict laicism) passes, IF:
     - Art. 26 was already radical (compounding effect)
@@ -302,6 +305,7 @@ class ConstitutionCrisis27Event(GameEvent):
 
 
 class ConstitutionCrisis44Event(GameEvent):
+    EVENT_ID = "1931_constitution_44_crisis"
     """
     Fires after Art. 44 (social property clause) passes, IF coalition stability
     is already low AND DLR or PRR relations are strained.
@@ -397,6 +401,7 @@ class ConstitutionCrisis44Event(GameEvent):
 
 
 class ConstitutionRatifiedEvent(GameEvent):
+    EVENT_ID = "1931_constitution_ratified"
     def should_trigger(self):
         is_date = self.state.date['year'] == 1931 and self.state.date['month'] == 12
         not_fired = "flag_constitution_ratified" not in self.state.passed_laws

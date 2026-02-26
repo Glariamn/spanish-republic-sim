@@ -8,6 +8,7 @@ import random
 
 
 class LeyAzanaEvent(GameEvent):
+    EVENT_ID = "1931_ley_azana"
     """
     Azaña's military reform decree — April/May 1931.
 

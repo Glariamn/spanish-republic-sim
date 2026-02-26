@@ -7,6 +7,7 @@ import random
 
 # --- 1. DER KLASSIKER (Wahl-Nacht) ---
 class AprilElectionNightEvent(GameEvent):
+    EVENT_ID = "1931_election_night"
     def should_trigger(self):
         # Dieses Event wird nur beim Spielstart durch die ID ausgelöst
         # und nicht im normalen monatlichen Tick geprüft.
@@ -35,7 +36,8 @@ class AprilElectionNightEvent(GameEvent):
             the capital sweeps as a clear plebiscite against King Alfonso XIII. 
 
             Within the Pact, socialists like Indalecio Prieto urged immediate radical action, 
-            straining ties with more cautious conservative republicans such as Niceto Alcalá-Zamora.""",
+            straining ties with more cautious conservative republicans such as Niceto Alcalá-Zamora.
+            """,
             "choices": [
                 {
                     "text": "Mobilize the Streets! Demand abdication.",
@@ -106,6 +108,7 @@ class AprilElectionNightEvent(GameEvent):
         }
     
 class ProclamationOfSecondRepublicEvent(GameEvent):
+    EVENT_ID = "1931_proclamation_of_second_republic"
     def should_trigger(self):
         # Chained directly from MaciaDeclarationEvent via app.py — never fires via dynamic tick
         return False
@@ -120,11 +123,11 @@ class ProclamationOfSecondRepublicEvent(GameEvent):
             "date_str": "14 April 1931",
             "text": """The morning of April 14 unfolds with electric tension. At 12:30 PM, Alcalá-Zamora steps onto the balcony of the Interior Ministry and proclaims the Second Spanish Republic. The tricolor — red, yellow, and purple — rises over government buildings across Madrid. The crowds erupt.
 
-King Alfonso XIII, having lost the backing of the army, departs the Palacio Real by motorcar and boards a cruiser at Cartagena. He leaves no abdication — only a manifesto lamenting the "loss of the affection of the people."
+            King Alfonso XIII, having lost the backing of the army, departs the Palacio Real by motorcar and boards a cruiser at Cartagena. He leaves no abdication — only a manifesto lamenting the "loss of the affection of the people."
 
-No shots are fired. General Sanjurjo stands neutral. The anarchists chant in the streets, though CNT militants eye the bourgeois pact with suspicion.
+            No shots are fired. General Sanjurjo stands neutral. The anarchists chant in the streets, though CNT militants eye the bourgeois pact with suspicion.
 
-The Republic is born. What happens next is up to you.""",
+            The Republic is born. What happens next is up to you.""",
             "choices": [
                 {
                     "text": "Mobilise our supporters. Be visible on the streets.",
@@ -191,6 +194,7 @@ The Republic is born. What happens next is up to you.""",
 # --- 2. CATALAN DECLARATION (14. April 1931) ---
 
 class MaciaDeclarationEvent(GameEvent):
+    EVENT_ID = "1931_macia_declaration"
     def should_trigger(self):
         is_date = self.state.date['year'] == 1931 and self.state.date['month'] == 4
         # Triggers as second event
@@ -203,11 +207,13 @@ class MaciaDeclarationEvent(GameEvent):
             "id": "1931_macia_declaration",
             "title": "The Catalan Republic?",
             "date_str": "14. April 1931",
-            "text": """Hours after Zamora's proclamation in Madrid, Francesc Macià steps onto the balcony of the Generalitat in Barcelona and declares a *República Catalana* within an Iberian Federation. The crowd below roars. The telegrams arriving in Madrid are less celebratory.
+            "text": """
+            Hours after Zamora's proclamation in Madrid, Francesc Macià steps onto the balcony of the Generalitat in Barcelona and declares a *República Catalana* within an Iberian Federation. The crowd below roars. The telegrams arriving in Madrid are less celebratory.
 
-The army generals are beside themselves — they see separatism, not autonomy. Lerroux and two other ministers are already boarding a train to Barcelona to negotiate. There is no question that Macià will have to retract the declaration. The question is what he gets in return, and whose idea it looks like.
+            The army generals are beside themselves — they see separatism, not autonomy. Lerroux and two other ministers are already boarding a train to Barcelona to negotiate. There is no question that Macià will have to retract the declaration. The question is what he gets in return, and whose idea it looks like.
 
-Your party needs to decide its position before Lerroux arrives.""",
+            Your party needs to decide its position before Lerroux arrives.
+            """,
             "choices": [
                 {
                     "text": "Support the autonomy negotiation. Back Lerroux's mission.",
@@ -294,6 +300,7 @@ Your party needs to decide its position before Lerroux arrives.""",
         }
     
 class ProvisionalGovernmentEvent(GameEvent):
+    EVENT_ID = "1931_provisional_government"
     def should_trigger(self):
         # Chained directly from ProclamationOfSecondRepublicEvent via app.py CHAIN dict
         return False
@@ -377,9 +384,9 @@ Your party has limited time and political capital in these first weeks. The deci
             ]
         }
 
-
 # --- 3. DER HIRTENBRIEF (Mai 1931) ---
 class CardinalSeguraEvent(GameEvent):
+    EVENT_ID = "1931_cardinal_segura"
     def should_trigger(self):
         is_date = self.state.date['year'] == 1931 and self.state.date['month'] == 5
         return is_date
@@ -478,6 +485,7 @@ class CardinalSeguraEvent(GameEvent):
 
 # --- 4. WAHLEN (Juni 1931) ---
 class JuneElectionsEvent(GameEvent):
+    EVENT_ID = "1931_june_elections"
     def should_trigger(self):
         # Trigger über das Wahldatum
         next_el = self.state.government.get('next_election_date', {})

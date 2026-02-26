@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.
 from content.base_event import GameEvent
 
 class ConfidenceVoteEvent(GameEvent):
+    EVENT_ID = "confidence_vote"
     
     def should_trigger(self):
         # Trigger-Bedingungen:

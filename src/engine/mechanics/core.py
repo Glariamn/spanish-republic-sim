@@ -9,8 +9,8 @@ from .government import get_coalition_seats
 from .factions import modify_faction_dissent
 
 # Events Import
-from content.initiatives.politics.coalition_crisis import CoalitionCrisisEvent
-from content.initiatives.party.faction_schism import FactionSchismEvent
+from content.events.system.coalition_crisis import CoalitionCrisisEvent
+from content.events.system.faction_schism import FactionSchismEvent
 from content.events.historical.burning_convents import BurningConventsEvent
 from content.events.system.confidence_vote import ConfidenceVoteEvent
 from content.events.historical.military_reform_event import LeyAzanaEvent

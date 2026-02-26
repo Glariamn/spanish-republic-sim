@@ -6,6 +6,7 @@ import content.game_data as gd
 import random
 
 class CEDAFoundedEvent(GameEvent):
+    EVENT_ID = "1932_ceda_foundation"
     """
     Template für ein dynamisches, zustandsbasiertes Event.
     Wird jeden Monat im `process_monthly_tick` geprüft.

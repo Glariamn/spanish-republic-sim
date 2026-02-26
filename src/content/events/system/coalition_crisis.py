@@ -7,11 +7,11 @@ import content.game_data as gd
 import random
 
 class CoalitionCrisisEvent(GameEvent):
+    EVENT_ID = "coalition_crisis"
     
     def should_trigger(self):
         stability = self.state.metrics["coalition_stability"]
         
-        # Trigger nur wenn instabil (< 30) und 20% Chance
         if stability < 30 and random.randint(1, 100) <= 20:
             # Wir speichern die problematische Partei direkt hier, 
             # damit wir sie bei get_data wiederfinden
@@ -41,7 +41,7 @@ class CoalitionCrisisEvent(GameEvent):
                 "effects": {
                     "transfer_ministry": party_id, 
                     "coalition_stability": 25,
-                    "modify_faction": {"tag": "not_left", "amount": 5} # Parteibasis (Beispiel)
+                    "modify_faction": {"tag": "not_left", "amount": 5} # 
                 }
             }
         })

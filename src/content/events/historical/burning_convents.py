@@ -6,6 +6,7 @@ from content.base_event import GameEvent
 import content.game_data as gd
 
 class BurningConventsEvent(GameEvent):
+    EVENT_ID = "1931_burning_convents"
     def should_trigger(self):
         is_date = (self.state.date['year'] == 1931 and self.state.date['month'] == 5)
         is_angry = (self.state.metrics['public_order'] < 60)
@@ -20,49 +21,54 @@ class BurningConventsEvent(GameEvent):
         war = self.state.ministries.get('war', {})
 
         cabinet_balance = 0
-        cabinet_lines = []
+        cabinet_text = []
 
         partners = [p for p in coalition if p != player_party]
 
         for p in partners:
-            if p == gd.PARTY_DLR:
+            if p == gd.PARTY_DLR: # Maura (Interior)
                 cabinet_balance += 2
-                cabinet_lines.append(f"{interior.get('holder','Maura')} (Interior) demands immediate action.")
-            elif p == gd.PARTY_PRR:
-                cabinet_lines.append("Lerroux (State) warns of international embarrassment.")
-            elif p == gd.PARTY_AR:
+                cabinet_text.append(f"{interior['holder']} (Interior) demands action.")
+            elif p == gd.PARTY_PRR: # Lerroux (Foreign)
+                cabinet_balance += 0
+                cabinet_text.append("Lerroux (State) warns of international embarrassment.")
+            elif p == gd.PARTY_AR: # Azaña (War)
                 cabinet_balance -= 2
-                cabinet_lines.append(f"{war.get('holder','Azaña')} (War) opposes violence against civilians.")
-            elif p == gd.PARTY_PSOE:
+                cabinet_text.append(f"{war['holder']} (War) opposes violence against civilians.")
+            elif p == gd.PARTY_PSOE: # Caballero/Prieto
                 cabinet_balance -= 1
-                cabinet_lines.append("The PSOE leadership fears a bloodbath that could trigger a general strike.")
-            elif p == gd.PARTY_PRRS:
-                cabinet_lines.append("The Radical Socialists sympathize with the rioters.")
+                cabinet_text.append("The PSOE leadership is wary of a bloodbath that could trigger a general strike.")
+            elif p == gd.PARTY_PRRS: # Radical Socialists
+                cabinet_balance += 0
+                cabinet_text.append("The Radical Socialists sympathize with the rioters.")
 
+        intro_text = f"""
+        **The 'La Quema de Conventos' has reached a boiling point.** 
+        Smoke rises from the Jesuit residence in Calle de la Flor. The mob is growing.
+        
+        On May 10, 1931, a monarchist provocation in Madrid — playing the former royal anthem \
+        *Marcha Real* from a window on Calle de Alcalá — ignited widespread anticlerical riots \
+        that spread rapidly to Sevilla, Málaga, Cádiz, and other cities over three days.
+
+        Crowds burned or damaged approximately 100 religious buildings. Priceless libraries, artworks, \
+        and archives were destroyed. No clergy were killed, but the episode alienated Catholic opinion \
+        profoundly, radicalized conservative resistance, and deepened calls for strict secular legislation.
+
+        Interior Minister Maura has declared martial law in affected provinces. War Minister Azaña \
+        reportedly said he would rather lose all Spain's convents than shed a single republican's blood.
+
+        *In the Council of Ministers, the atmosphere is electric.*
+        """
         if cabinet_balance > 1:
-            cabinet_mood = "The mood in the room is grim. The conservative wing pushes hard for a crackdown."
+            intro_text += "The mood in the room is grim. The conservative wing is pushing hard for a crackdown. "
         elif cabinet_balance < -1:
-            cabinet_mood = "The cabinet is paralyzed by fear of provoking a massacre. The left wing blocks any military action."
+            intro_text += "The cabinet is paralyzed by fear of provoking a massacre. The left wing blocks any military action. "
+        
         else:
-            cabinet_mood = "The government is deadlocked. Voices shout over each other."
+            intro_text += "The government is deadlocked. Voices shout over each other. "
 
-        cabinet_text = " ".join(cabinet_lines)
-
-        intro = f"""**La Quema de Conventos — the fires are spreading.**
-
-On May 10, 1931, a monarchist provocation in Madrid — playing the former royal anthem \
-*Marcha Real* from a window on Calle de Alcalá — ignited widespread anticlerical riots \
-that spread rapidly to Sevilla, Málaga, Cádiz, and other cities over three days.
-
-Crowds burned or damaged approximately 100 religious buildings. Priceless libraries, artworks, \
-and archives were destroyed. No clergy were killed, but the episode alienated Catholic opinion \
-profoundly, radicalized conservative resistance, and deepened calls for strict secular legislation.
-
-Interior Minister Maura has declared martial law in affected provinces. War Minister Azaña \
-reportedly said he would rather lose all Spain's convents than shed a single republican's blood.
-
-*In the Council of Ministers, the atmosphere is electric.* {cabinet_mood} {cabinet_text}"""
-
+        intro_text += " ".join(cabinet_text)
+        
         choices = []
 
         choices.append({
@@ -87,7 +93,7 @@ reportedly said he would rather lose all Spain's convents than shed a single rep
                 }
             }
         })
-
+        
         choices.append({
             "text": "Back Azaña: 'Do not provoke the people.'",
             "success": {
@@ -131,6 +137,6 @@ reportedly said he would rather lose all Spain's convents than shed a single rep
         return {
             "id": "1931_burning_convents",
             "title": "La Quema de Conventos",
-            "text": intro,
+            "text": intro_text,
             "choices": choices
         }

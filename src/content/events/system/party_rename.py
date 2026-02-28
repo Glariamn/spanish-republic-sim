@@ -45,7 +45,7 @@ class AccionPopularRenameEvent(GameEvent):
                             "add_law": "flag_accion_popular_rename",
                             "rename_party": {"party": gd.PARTY_CEDA, "new_name": "Acción Popular"},
                             # Reorganisation — not yet a mass party but growing.
-                            "add_institutionalization": {"party": gd.PARTY_CEDA, "value": 38},
+                            "add_institutionalization": {"party": gd.PARTY_CEDA, "value": 13},
                             "demographic_shift": {
                                 "group": "bourgeoisie",
                                 "changes": {gd.PARTY_CEDA: 0.02, gd.PARTY_DLR: -0.01}
@@ -110,7 +110,7 @@ class CEDAFoundedEvent(GameEvent):
                             # 700k members, national organisation.
                             # This institutionalization lets them convert Catholic rural
                             # votes into seats through D'Hondt.
-                            "add_institutionalization": {"party": gd.PARTY_CEDA, "value": 58},
+                            "add_institutionalization": {"party": gd.PARTY_CEDA, "value": 20},
                             "coalition_stability": -5,
                             "demographic_shift": {
                                 "group": "bourgeoisie",

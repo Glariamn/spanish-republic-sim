@@ -245,11 +245,12 @@ def _eff_budget_int(v):
     st.session_state.economy['budget_int'] += v
 
 def _eff_add_institutionalization(v):
-    """v = {"party": "ceda", "value": 45}"""
+    """v = {"party": "ceda", "value": 13} — adds flat delta, same as members/funds."""
     party = v["party"]
     val = v["value"]
     if party in st.session_state.parties:
-        st.session_state.parties[party]["institutionalization"] += val
+        st.session_state.parties[party]["institutionalization"] = max(0, min(100,
+            st.session_state.parties[party].get("institutionalization", 0) + val))
 
 def _eff_transfer_security_force(v):
     """v = {"force": "guardia_civil", "to": "interior"}"""

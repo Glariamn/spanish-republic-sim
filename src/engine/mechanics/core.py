@@ -24,6 +24,178 @@ from content.events.historical.constitution_events import (
 )
 from content.events.historical.events_1932 import SanjurjadaEvent
 from content.events.system.party_rename import AccionPopularRenameEvent, CEDAFoundedEvent
+from content.events.historical.security_transfer import GCToInteriorEvent, CarabinerosToInteriorEvent
+
+def _clamp(val, lo=0, hi=100):
+    return max(lo, min(hi, val))
+
+
+def tick_army_factions(state):
+    """
+    Monthly drift of officer faction distribution.
+    Two forces:
+      - Entropy: slow drift toward anti_republican over time (reflects
+        institutional culture, seniority, Catholic education of officer class)
+      - Event shocks are applied elsewhere (Ley Azaña, Sanjurjada, etc.)
+      - Counterweight: reform_progress and republican metrics slow the drift
+
+    Only affects army_peninsular and army_africa for now.
+    Factions always sum to 100 — gaining in one means losing in others.
+    """
+    for unit_key in ("army_peninsular", "army_africa"):
+        unit = state.military.get(unit_key, {})
+        f = unit.get("factions")
+        if not f:
+            continue
+
+        # Base entropy: anti-republican faction grows slightly each month
+        # Slower if reform progress is high or public order is stable
+        reform_mod = unit.get("reform_progress", 0) / 200   # max -0.5 modifier
+        order_mod  = (state.metrics["public_order"] - 50) / 400  # -ve if order < 50
+
+        # Base drift: +0.3 to anti_republican per month, taken from loyalist/republican
+        drift = max(0.1, 0.3 - reform_mod + order_mod)
+        drift *= random.uniform(0.6, 1.4)
+
+        # Anti-republican grows, loyalist absorbs most of the loss
+        gain = min(drift, 100 - f["anti_republican"] - 1)
+        lose_loyalist = gain * 0.6
+        lose_republican = gain * 0.4
+
+        f["anti_republican"] = _clamp(f["anti_republican"] + gain)
+        f["loyalist"]        = _clamp(f["loyalist"] - lose_loyalist)
+        f["republican"]      = _clamp(f["republican"] - lose_republican)
+
+        # Renormalize to 100
+        total = sum(f.values())
+        if total > 0:
+            for k in f:
+                f[k] = round(f[k] / total * 100, 1)
+
+
+def tick_security_loyalty(state):
+    """
+    Security force loyalty drifts toward an equilibrium each month.
+    Equilibrium is NOT simply the controlling ministry's party ideology —
+    it's a composite of:
+      - The demographic composition of the force (Guardia Civil: rural, Catholic)
+      - The state of the country (public order, polarization)
+      - Specific actions taken by ministers (applied as shocks elsewhere)
+
+    Each force has a hard floor and ceiling reflecting its nature.
+    The pull toward equilibrium is gentle — loyalty moves maybe 0.5-1.5 pts/month
+    passively. Big moves come from events and actions.
+    """
+    # Equilibria: where each force "wants" to be given country state
+    # Base equilibrium per force
+    BASE_EQUILIBRIUM = {
+        "guardia_civil": 32,    # Structurally conservative — equilibrium is low
+        "assault_guard":  85,   # Created for loyalty — floor is high
+        "carabineros":    52,
+    }
+
+    # Adjust equilibrium based on country state
+    order = state.metrics.get("public_order", 50)
+    stability = state.metrics.get("coalition_stability", 50)
+    # Polarization proxy: low order + low stability = worse equilibrium for GC
+    polarization_drag = max(0, (100 - order) / 100 + (100 - stability) / 200)
+
+    for force_key, force in state.security.items():
+        base_eq = BASE_EQUILIBRIUM.get(force_key, 50)
+        # GC equilibrium falls faster under polarization
+        if force_key == "guardia_civil":
+            equilibrium = _clamp(base_eq - polarization_drag * 10)
+        elif force_key == "assault_guard":
+            equilibrium = _clamp(base_eq - polarization_drag * 3)
+        else:
+            equilibrium = _clamp(base_eq - polarization_drag * 5)
+
+        current = force.get("loyalty_republic", 50)
+        # Gentle pull: 0.3-0.8 per month toward equilibrium
+        pull = random.uniform(0.3, 0.8)
+        if current < equilibrium:
+            new_val = min(current + pull, equilibrium)
+        elif current > equilibrium:
+            new_val = max(current - pull, equilibrium)
+        else:
+            new_val = current
+
+        force["loyalty_republic"] = round(_clamp(new_val), 1)
+        force["loyalty"] = force["loyalty_republic"]  # keep legacy field in sync
+
+
+def tick_conspiracy(state):
+    """
+    Monthly conspiracy tick. Only runs if conspiracy.active == True.
+    
+    Momentum growth:
+      - Base: +1.5/month (it builds regardless)
+      - Modified by: army anti_republican %, public order, economy, polarization
+      - Reduced by: assault guard strength, high officer loyalty institutional score
+    
+    Defection:
+      - Logarithmic growth from the anti_republican officer pool
+      - Soldiers follow at ~55% of officer defection rate
+    """
+    import math
+    c = state.conspiracy
+    if not c["active"]:
+        return
+
+    c["months_active"] += 1
+    army = state.military["army_peninsular"]
+    africa = state.military["army_africa"]
+
+    # --- Momentum growth ---
+    anti_rep_pct = (
+        army["factions"]["anti_republican"] * 0.6 +
+        africa["factions"]["anti_republican"] * 0.4
+    )
+    order_factor    = (100 - state.metrics["public_order"]) / 100   # 0-1
+    economy_factor  = max(0, (50 - state.economy.get("budget_int", 0)) / 100)
+    stability_factor = (100 - state.metrics["coalition_stability"]) / 200
+
+    # Counterweights
+    ag = state.security.get("assault_guard", {})
+    ag_factor = (ag.get("manpower", 0) / 20000) * (ag.get("loyalty_republic", 80) / 100)
+    institutional_loyalty = army["officer_loyalty"] / 200  # small dampener
+
+    momentum_gain = (
+        1.5
+        + anti_rep_pct / 25
+        + order_factor * 3
+        + economy_factor * 2
+        + stability_factor * 2
+        - ag_factor * 2
+        - institutional_loyalty
+        + random.uniform(-0.5, 1.0)   # noise — tends slightly positive
+    )
+    c["momentum"] = _clamp(c["momentum"] + momentum_gain)
+
+    # --- Defection (logarithmic) ---
+    # Pool: anti_republican officers across both armies
+    total_officers = army["officers"] + africa["officers"]
+    anti_rep_officers = int(total_officers * (
+        army["factions"]["anti_republican"] * army["officers"] +
+        africa["factions"]["anti_republican"] * africa["officers"]
+    ) / (100 * total_officers))
+
+    already_defected = c["defected_officers"]
+    remaining_pool = max(0, anti_rep_officers - already_defected)
+
+    if remaining_pool > 0 and c["momentum"] > 5:
+        # Logarithmic: fast early gains, slows as pool saturates
+        monthly_recruit = remaining_pool * (
+            math.log(1 + c["momentum"]) / math.log(101)
+        ) * random.uniform(0.05, 0.15)
+        monthly_recruit = min(monthly_recruit, remaining_pool)
+        c["defected_officers"] += int(monthly_recruit)
+
+        # Soldiers: follow their officers at ~55% rate
+        total_soldiers = army["soldiers"] + africa["soldiers"]
+        soldier_ratio = total_soldiers / total_officers
+        c["defected_soldiers"] += int(monthly_recruit * soldier_ratio * 0.55)
+
 
 def calculate_outcome(base_chance, modifiers, game_state):
     current_chance = base_chance
@@ -87,6 +259,9 @@ def process_monthly_tick(state):
     state.economy['budget_int'] += (revenue_actual - expenses_actual)
     
     entropy_msg = apply_entropy(state)
+    tick_army_factions(state)
+    tick_security_loyalty(state)
+    tick_conspiracy(state)
 
     # 1. Historical Event Check
     historical_id = None
@@ -101,7 +276,7 @@ def process_monthly_tick(state):
             historical_id = "1931_lerroux_exit"
     elif y == 1932 and "1932_sanjurjada" not in history:
         if m == 8: historical_id = "1932_sanjurjada"
-            
+
     if historical_id:
         return "Historical Event Imminent.", None, historical_id
     
@@ -147,6 +322,9 @@ def process_monthly_tick(state):
         AccionPopularRenameEvent(state),
         # 1933
         CEDAFoundedEvent(state),
+        # Security transfers (fire when conditions met, any year)
+        GCToInteriorEvent(state),
+        CarabinerosToInteriorEvent(state),
     ]
     
     for event in possible_events:

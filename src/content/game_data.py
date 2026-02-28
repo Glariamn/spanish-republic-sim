@@ -1568,16 +1568,42 @@ STATE_START = {
     # SICHERHEIT
     "security": {
         "guardia_civil": {
-            "name": "Guardia Civil", "manpower": 28000, "loyalty": 40, 
-            "equipment": 80, "readiness": 90
+            "name": "Guardia Civil",
+            "manpower": 28000,
+            "loyalty_republic": 35,     # Institutional loyalty to the Republic. Low — rural, Catholic, conservative.
+            "loyalty":          35,     # Legacy field, kept in sync
+            "equipment": 80,
+            "readiness": 90,
+            "controlling_ministry": "war",          # Historically under War initially
+            "eligible_ministries": ["war", "interior"],
+            "notes": "Rural paramilitary police. Conservative, Catholic, monarchist-leaning. "
+                     "Transferring to Interior improves intelligence on civil unrest but "
+                     "doesn't improve their republican loyalty automatically."
         },
         "assault_guard": {
-            "name": "Guardia de Asalto", "manpower": 0, "loyalty": 100, 
-            "equipment": 0, "readiness": 0
+            "name": "Guardia de Asalto",
+            "manpower": 0,              # Created by event (flag_assault_guard_created)
+            "loyalty_republic": 88,
+            "loyalty":          88,
+            "equipment": 0,
+            "readiness": 0,
+            "controlling_ministry": "interior",
+            "eligible_ministries": ["interior", "war"],
+            "notes": "Created 1931 specifically to be loyal to the Republic. Urban. "
+                     "Counterweight to the Guardia Civil."
         },
         "carabineros": {
-            "name": "Carabineros", "manpower": 15000, "loyalty": 50, 
-            "equipment": 40, "readiness": 60
+            "name": "Carabineros",
+            "manpower": 15000,
+            "loyalty_republic": 55,
+            "loyalty":          55,
+            "equipment": 40,
+            "readiness": 60,
+            "controlling_ministry": "finance",
+            "eligible_ministries": ["finance", "interior"],
+            "notes": "Customs and border force. Loyalty improves significantly under "
+                     "left-wing Finance ministers (historically Negrín). "
+                     "Useful for border intelligence."
         }
     },
 
@@ -1591,39 +1617,93 @@ STATE_START = {
     # MILITÄR
     "military": {
         "army_peninsular": {
-            "name": "Peninsular Army", 
-            "officers": 16000,          # Konkrete Zahl (~1 officer per 6.5 soldiers — bloated from colonial era)
-            "soldiers": 105000,         # Konkrete Zahl
-            "officer_loyalty": 40,      # Loyalität der Offiziere (0–100)
-            "soldier_loyalty": 60,      # Loyalität der Truppen (0–100)
-            "equipment_quality": 40,    # 0-100 Abstraktion
-            "efficiency": 10,           # 0-100 Abstraktion
-            "readiness": 20,            # Organisation & Doktrin
-            "reform_progress": 0,       # 0–100: unlocks sequential reform cards
-            "capitanias_active": True,  # Capitanías Generales still exist
-            "zaragoza_open": True,      # Academia General Militar still open
+            "name": "Peninsular Army",
+            "officers": 16000,
+            "soldiers": 105000,
+            "officer_loyalty": 40,      # Institutional satisfaction (funding, prestige, etc.)
+            "soldier_loyalty": 60,
+            "equipment_quality": 40,
+            "efficiency": 10,
+            "readiness": 20,
+            "reform_progress": 0,
+            "capitanias_active": True,
+            "zaragoza_open": True,
+            # Political tendency distribution — officers only. Sums to 100.
+            # anti_republican: actively want the Republic gone
+            # conservative: serve stable authority, prefer order over ideology
+            # loyalist: professionally loyal to legal government
+            # republican: genuinely committed to the Republic
+            "factions": {
+                "anti_republican": 38,
+                "conservative":    27,
+                "loyalist":        24,
+                "republican":      11,
+            }
         },
         "army_africa": {
             "name": "Army of Africa",
             "officers": 2500,
             "soldiers": 27500,
-            "officer_loyalty": 30, 
+            "officer_loyalty": 30,
             "soldier_loyalty": 40,
             "equipment_quality": 50,
             "efficiency": 45,
-            "readiness": 70
+            "readiness": 70,
+            # Africa corps: much higher anti-republican concentration
+            # These are the legionnaires, regulares commanders — Mola, Franco
+            "factions": {
+                "anti_republican": 58,
+                "conservative":    22,
+                "loyalist":        14,
+                "republican":       6,
+            }
         },
         "navy": {
-            "name": "La Armada", 
+            "name": "La Armada",
             "ships_heavy": 4, "ships_light": 15,
             "officers": 2000, "sailors": 10000,
-            "officer_loyalty": 15, "sailor_loyalty": 75, "readiness": 50
+            "officer_loyalty": 15, "sailor_loyalty": 75, "readiness": 50,
+            # Navy officers: very anti-republican. Sailors: inverse.
+            "factions": {
+                "anti_republican": 50,
+                "conservative":    28,
+                "loyalist":        15,
+                "republican":       7,
+            }
         },
         "air_force": {
-            "name": "Fuerzas Aéreas", 
-            "planes": 100, 
+            "name": "Fuerzas Aéreas",
+            "planes": 100,
             "officers": 1000, "soldiers": 10000,
-            "loyalty": 70, "readiness": 60
+            "loyalty": 70, "readiness": 60,
+            # Air force: newer service, more technically minded, less monarchist
+            "factions": {
+                "anti_republican": 22,
+                "conservative":    30,
+                "loyalist":        30,
+                "republican":      18,
+            }
+        }
+    },
+
+    # CONSPIRACY — the UME and affiliated plotters
+    # active=False until trigger conditions are met in core.py tick
+    # momentum: 0-100, drives coup chance roll. Grows with entropy, shrinks if conditions improve.
+    # internal_factions: proportions WITHIN the conspiracy (sum to 100).
+    #   These affect the coup tier and post-coup politics if it fires.
+    # defected_*: cumulative officers/soldiers who have been recruited to the conspiracy.
+    #   Not all will fight — but they won't resist either.
+    "conspiracy": {
+        "active": False,
+        "momentum": 0,
+        "months_active": 0,
+        "defected_officers": 0,
+        "defected_soldiers": 0,
+        "internal_factions": {
+            "monarchist":  40,   # Alfonsists — want Alfonso XIII restored
+            "carlist":     25,   # Want Carlist pretender, deeply Catholic, Navarre base
+            "falangist":   10,   # Fascist-adjacent, Primo de Rivera's son
+            "catholic":    25,   # Conservative republican-adjacent, CEDA-adjacent officers
         }
     },
     

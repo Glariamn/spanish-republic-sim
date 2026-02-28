@@ -18,6 +18,7 @@ import content.events.system.faction_schism as faction_schism_mod
 import content.events.historical.military_reform_event as military_reform_mod
 import content.events.system.party_rename as party_rename_mod
 import content.events.historical.events_1932 as ev32
+import content.events.historical.security_transfer as security_transfer_mod
 
 from engine.mechanics.parliament import resolve_vote
 from content.issue_effects import get_issue_effects
@@ -37,6 +38,7 @@ _EVENT_MODULES = [
     military_reform_mod,
     party_rename_mod,
     ev32,
+    security_transfer_mod,
 ]
 
 EVENT_MAP = {}
@@ -193,10 +195,16 @@ def _eff_army_zaragoza_closed(v):
 def _eff_assault_guard_created(v):
     ag = st.session_state.security.get("assault_guard", {})
     ag["manpower"] = 10000
+    ag["loyalty_republic"] = 95
     ag["loyalty"] = 95
     ag["equipment"] = 60
     ag["readiness"] = 50
     return " | Guardia de Asalto established."
+
+def _eff_transfer_security_force(v):
+    """v = {"force": "guardia_civil", "to": "interior"}"""
+    from content.events.historical.security_transfer import transfer_security_force
+    return transfer_security_force(st.session_state, v["force"], v["to"])
 
 def _eff_metrics(k, v):
     st.session_state.metrics[k] += v
@@ -264,6 +272,7 @@ EFFECT_HANDLERS = {
     "army_capitanias_abolished": _eff_army_capitanias_abolished,
     "army_zaragoza_closed":      _eff_army_zaragoza_closed,
     "assault_guard_created":     _eff_assault_guard_created,
+    "transfer_security_force":   _eff_transfer_security_force,
 }
 
 def apply_effects(effects_dict):

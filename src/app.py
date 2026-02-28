@@ -29,7 +29,7 @@ from content.base_event import GameEvent
 # To add a new event: set EVENT_ID on the class, add its module above.
 _EVENT_MODULES = [
     ev31,
-#    const,           # constitution.py: only Constitution26Event has EVENT_ID here
+    # const,           # constitution.py: only Constitution26Event has EVENT_ID here
     const_ev,        # constitution_events.py: canonical for all other constitution events
     burning_convents_mod,
     coalition_crisis_mod,
@@ -235,11 +235,52 @@ def _eff_trigger_vote(v):
     st.session_state.vote_result = {'votes': votes, 'details': details}
     if passed:
         st.session_state.passed_laws.add(v["add_law"])
+        # Apply any conditional effects that only trigger on a successful vote
+        if "on_pass_effects" in v:
+            apply_effects(v["on_pass_effects"])
         return f"{v['issue']} PASSED in the Cortes."
     return f"{v['issue']} FAILED in the Cortes."
 
 def _eff_budget_int(v):
     st.session_state.economy['budget_int'] += v
+
+def _eff_add_institutionalization(v):
+    """v = {"party": "ceda", "value": 45}"""
+    party = v["party"]
+    val = v["value"]
+    if party in st.session_state.parties:
+        st.session_state.parties[party]["institutionalization"] += val
+
+def _eff_transfer_security_force(v):
+    """v = {"force": "guardia_civil", "to": "interior"}"""
+    force = st.session_state.security.get(v["force"])
+    if not force:
+        return
+    target = v["to"]
+    if target in force.get("eligible_ministries", []):
+        force["controlling_ministry"] = target
+        force_name = force.get("name", v["force"])
+        return f"{force_name} transferred to {target}."
+
+def _eff_army_officer_loyalty(v):
+    st.session_state.military["army_peninsular"]["officer_loyalty"] = max(0, min(100,
+        st.session_state.military["army_peninsular"]["officer_loyalty"] + v))
+
+def _eff_army_soldier_loyalty(v):
+    st.session_state.military["army_peninsular"]["soldier_loyalty"] = max(0, min(100,
+        st.session_state.military["army_peninsular"]["soldier_loyalty"] + v))
+
+def _eff_army_reform_progress(v):
+    st.session_state.military["army_peninsular"]["reform_progress"] = max(0, min(100,
+        st.session_state.military["army_peninsular"].get("reform_progress", 0) + v))
+
+def _eff_army_readiness(v):
+    st.session_state.military["army_peninsular"]["readiness"] = max(0, min(100,
+        st.session_state.military["army_peninsular"]["readiness"] + v))
+
+def _eff_army_efficiency(v):
+    st.session_state.military["army_peninsular"]["efficiency"] = max(0, min(100,
+        st.session_state.military["army_peninsular"]["efficiency"] + v))
 
 EFFECT_HANDLERS = {
     "demographic_shift":   _eff_demographic_shift,
@@ -273,6 +314,7 @@ EFFECT_HANDLERS = {
     "army_zaragoza_closed":      _eff_army_zaragoza_closed,
     "assault_guard_created":     _eff_assault_guard_created,
     "transfer_security_force":   _eff_transfer_security_force,
+    "add_institutionalization":   _eff_add_institutionalization,
 }
 
 def apply_effects(effects_dict):
@@ -378,7 +420,6 @@ else:
                         logs = apply_effects(res.get('effects', {}))
                         st.session_state.last_outcome_text = res['msg'] + logs
 
-                        # Queue the next event for after the feedback screen
                         CHAIN = {
                             "1931_election_night":                   "1931_macia_declaration",
                             "1931_macia_declaration":                "1931_proclamation_of_second_republic",
@@ -392,6 +433,7 @@ else:
                                 "start_pm_nomination" not in res.get('effects', {}) and
                                 "start_presidential_election" not in res.get('effects', {})):
                             st.session_state.current_event_id = None
+
                         if curr not in st.session_state.get('event_history', []):
                             st.session_state.event_history.append(curr)
 

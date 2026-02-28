@@ -8,9 +8,8 @@ import content.game_data as gd
 class AccionPopularRenameEvent(GameEvent):
     EVENT_ID = "1932_accion_popular_rename"
     """
-    April 1932: The government rules that 'Acción Nacional' is an implicitly
-    monarchist name and orders it dropped. Gil Robles renames the party
-    Acción Popular — wider, more neutral, deliberately vague.
+    April 1932: Government dissolves Acción Nacional as implicitly monarchist.
+    Gil Robles re-registers as Acción Popular. Begins confederation talks.
     Fires once in April 1932.
     """
 
@@ -26,12 +25,13 @@ class AccionPopularRenameEvent(GameEvent):
             "date_str": "April 1932",
             "text": """
             The Azaña government has ruled that the name *Acción Nacional* carries
-            implicitly monarchist connotations and orders its dissolution as a registered party.
+            implicitly monarchist connotations and orders its dissolution as a
+            registered party.
 
-            Gil Robles is untroubled. He re-registers the organisation under a new name:
-            **Acción Popular** — broader, more neutral, and deliberately harder to attack.
-            He has begun quiet negotiations with other right-wing organisations
-            about a future confederation.
+            Gil Robles is untroubled. He re-registers the organisation under a new
+            name: **Acción Popular** — broader, more neutral, deliberately harder
+            to attack legally. He has begun quiet negotiations with other right-wing
+            organisations about a future confederation.
 
             The right is consolidating. It will take time, but the trajectory is clear.
             """,
@@ -39,12 +39,16 @@ class AccionPopularRenameEvent(GameEvent):
                 {
                     "text": "Note the development. The right is organising.",
                     "success": {
-                        "msg": "Acción Nacional is renamed Acción Popular. Gil Robles continues building.",
+                        "msg": "Acción Nacional is renamed Acción Popular. "
+                               "Gil Robles continues building the right-wing confederation.",
                         "effects": {
                             "add_law": "flag_accion_popular_rename",
-                            "rename_party": {
-                                "party": gd.PARTY_CEDA,
-                                "new_name": "Acción Popular"
+                            "rename_party": {"party": gd.PARTY_CEDA, "new_name": "Acción Popular"},
+                            # Reorganisation — not yet a mass party but growing.
+                            "add_institutionalization": {"party": gd.PARTY_CEDA, "value": 38},
+                            "demographic_shift": {
+                                "group": "bourgeoisie",
+                                "changes": {gd.PARTY_CEDA: 0.02, gd.PARTY_DLR: -0.01}
                             }
                         }
                     }
@@ -56,11 +60,9 @@ class AccionPopularRenameEvent(GameEvent):
 class CEDAFoundedEvent(GameEvent):
     EVENT_ID = "1933_ceda_founded"
     """
-    February 1933: Acción Popular merges with Derecha Regional Valenciana and
-    other provincial Catholic-conservative groups into the CEDA — Confederación
-    Española de Derechas Autónomas. Gil Robles leads it.
-    The largest right-wing party in Republican Spain.
-    Fires once in February 1933.
+    February 1933: Acción Popular merges ith Derecha Regional Valenciana and
+    other provincial Catholic-conservative groups into the CEDA. 700,000 members. The right now has a mass party.
+    Requires AccionPopularRenameEvent to have fired first.
     """
 
     def should_trigger(self):
@@ -100,17 +102,30 @@ class CEDAFoundedEvent(GameEvent):
                 {
                     "text": "The Republic faces its most dangerous opponent yet.",
                     "success": {
-                        "msg": "The CEDA is founded. The right now has a mass party.",
+                        "msg": "The CEDA is founded. The right now has a mass party "
+                               "with national reach and 700,000 members.",
                         "effects": {
                             "add_law": "flag_ceda_founded",
-                            "rename_party": {
-                                "party": gd.PARTY_CEDA,
-                                "new_name": "CEDA"
-                            },
+                            "rename_party": {"party": gd.PARTY_CEDA, "new_name": "CEDA"},
+                            # 700k members, national organisation.
+                            # This institutionalization lets them convert Catholic rural
+                            # votes into seats through D'Hondt.
+                            "add_institutionalization": {"party": gd.PARTY_CEDA, "value": 58},
                             "coalition_stability": -5,
                             "demographic_shift": {
                                 "group": "bourgeoisie",
-                                "changes": {gd.PARTY_CEDA: 0.05, gd.PARTY_MON: -0.03}
+                                "changes": {gd.PARTY_CEDA: 0.05, gd.PARTY_MON: -0.03,
+                                            gd.PARTY_DLR: -0.02}
+                            },
+                            "demographic_shift_2": {
+                                "group": "clergy",
+                                "changes": {gd.PARTY_CEDA: 0.08, gd.PARTY_DLR: -0.05,
+                                            gd.PARTY_MON: -0.03}
+                            },
+                            "demographic_shift_3": {
+                                "group": "workers_rural",
+                                "changes": {gd.PARTY_CEDA: 0.04, gd.PARTY_MON: 0.01,
+                                            gd.PARTY_PSOE: -0.03}
                             }
                         }
                     }

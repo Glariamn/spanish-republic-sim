@@ -22,7 +22,9 @@ from content.events.historical.constitution_events import (
     LerrouxExitEvent, Constitution26CrisisEvent, ConstitutionCrisis27Event,
     ConstitutionCrisis44Event, ConstitutionRatifiedEvent
 )
-from content.events.historical.events_1932 import SanjurjadaEvent
+from content.events.historical.events_1932 import (
+    SanjurjadaEvent, CatalanStatuteEvent, AgrarianReformEvent
+)
 from content.events.system.party_rename import AccionPopularRenameEvent, CEDAFoundedEvent
 from content.events.historical.security_transfer import GCToInteriorEvent, CarabinerosToInteriorEvent
 
@@ -197,6 +199,93 @@ def tick_conspiracy(state):
         c["defected_soldiers"] += int(monthly_recruit * soldier_ratio * 0.55)
 
 
+
+def tick_political_drift(state):
+    """
+    Monthly slow bleed of election_demographics away from coalition parties.
+
+    Sources of drift (each tiny, cumulative over months):
+      incumbency_fatigue  -- being in government always costs something
+      minority_penalty    -- minority gov loses faster, can't deliver
+      unemployment        -- above baseline bleeds workers
+      budget_deficit      -- negative budget hurts bourgeoisie confidence
+      order_decay         -- below 60 (start value) bleeds all groups
+      casas_viejas        -- if that flag exists: extra workers_urban bleed
+
+    Each source bleeds FROM coalition parties proportionally to their
+    current share in that group, INTO the natural opposition party for
+    that group. Non-coalition parties are not bled.
+
+    Net per-month shift is ~0.001-0.005 per group per source -- small but
+    compounds meaningfully over 24 months.
+    """
+    from .elections import apply_demographic_vector
+
+    coalition = set(state.government.get("coalition", []))
+    if not coalition:
+        return
+
+    economy = state.economy
+    metrics = state.metrics
+    passed = state.passed_laws
+
+    incumbency    = 0.0008
+
+    minority_pen  = 0.0015 if state.government.get("is_minority", False) else 0.0
+
+    unemployment  = economy.get("unemployment", 12.5)
+    unemp_factor  = max(0, (unemployment - 12.5) / 100)
+
+    budget        = economy.get("budget_int", 0)
+    deficit_factor = max(0, -budget / 200)
+
+    order         = metrics.get("public_order", 60)
+    order_factor  = max(0, (60 - order) / 300)
+
+    casas_factor  = 0.003 if "flag_casas_viejas" in passed else 0.0
+
+    OPPOSITION_TARGET = {
+        "aristocracy":   gd.PARTY_MON,
+        "clergy":        gd.PARTY_CEDA,
+        "bourgeoisie":   gd.PARTY_CEDA,
+        "workers_urban": gd.PARTY_PCE,
+        "workers_rural": gd.PARTY_PCE,
+        "soldiers":      gd.PARTY_PRR,
+    }
+
+    drift_sources = [
+        (incumbency,     ["aristocracy", "clergy", "bourgeoisie",
+                          "workers_urban", "workers_rural"]),
+        (minority_pen,   ["bourgeoisie", "workers_urban", "workers_rural"]),
+        (unemp_factor,   ["workers_urban", "workers_rural"]),
+        (deficit_factor, ["bourgeoisie", "aristocracy"]),
+        (order_factor,   ["workers_urban", "workers_rural", "bourgeoisie"]),
+        (casas_factor,   ["workers_urban"]),
+    ]
+
+    demos = state.election_demographics
+    for magnitude, groups in drift_sources:
+        if magnitude <= 0:
+            continue
+        for group in groups:
+            if group not in demos:
+                continue
+            prefs = demos[group]
+            target = OPPOSITION_TARGET.get(group)
+            if not target:
+                continue
+            coalition_share = sum(prefs.get(p, 0) for p in coalition)
+            if coalition_share <= 0:
+                continue
+            bleed_total = magnitude * coalition_share
+            changes = {target: bleed_total}
+            for p in coalition:
+                if p in prefs and prefs[p] > 0:
+                    share_of_coalition = prefs[p] / coalition_share
+                    changes[p] = changes.get(p, 0) - bleed_total * share_of_coalition
+            apply_demographic_vector(state, group, changes)
+
+
 def calculate_outcome(base_chance, modifiers, game_state):
     current_chance = base_chance
     metrics = game_state.metrics
@@ -262,6 +351,7 @@ def process_monthly_tick(state):
     tick_army_factions(state)
     tick_security_loyalty(state)
     tick_conspiracy(state)
+    tick_political_drift(state)
 
     # 1. Historical Event Check
     historical_id = None
@@ -274,8 +364,15 @@ def process_monthly_tick(state):
             historical_id = "1931_cardinal_segura"
         elif m == 10 and "1931_lerroux_exit" not in history:
             historical_id = "1931_lerroux_exit"
-    elif y == 1932 and "1932_sanjurjada" not in history:
-        if m == 8: historical_id = "1932_sanjurjada"
+    elif y == 1932:
+        if m == 8 and "1932_sanjurjada" not in history:
+            historical_id = "1932_sanjurjada"
+        elif m == 9:
+            # Statute and reform both fire in September — statute has priority
+            if "flag_catalan_statute" not in state.passed_laws:
+                historical_id = "1932_catalan_statute"
+            elif "flag_agrarian_reform" not in state.passed_laws:
+                historical_id = "1932_agrarian_reform"
 
     if historical_id:
         return "Historical Event Imminent.", None, historical_id
@@ -319,6 +416,8 @@ def process_monthly_tick(state):
         ConstitutionRatifiedEvent(state),
         # 1932
         SanjurjadaEvent(state),
+        CatalanStatuteEvent(state),
+        AgrarianReformEvent(state),
         AccionPopularRenameEvent(state),
         # 1933
         CEDAFoundedEvent(state),

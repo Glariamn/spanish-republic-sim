@@ -69,7 +69,29 @@ def get_initiatives(state):
                                 "player_position": "full",
                                 "author_party": author_party,
                                 "ideology_target": 4,
-                                "add_law": "const_suffrage"
+                                "add_law": "const_suffrage",
+                                # Catholic women voted right in 1933. This is the single
+                                # largest driver of CEDA's 1933 result.
+                                # Clergy: devout women shift hard to CEDA/Catholic parties.
+                                # Bourgeoisie: conservative women shift moderately.
+                                # Workers: minimal effect — left women already vote left.
+                                "on_pass_effects": {
+                                    "demographic_shift": {
+                                        "group": "clergy",
+                                        "changes": {gd.PARTY_CEDA: 0.12, gd.PARTY_PNV: 0.03,
+                                                    gd.PARTY_DLR: -0.05}
+                                    },
+                                    "demographic_shift_2": {
+                                        "group": "bourgeoisie",
+                                        "changes": {gd.PARTY_CEDA: 0.06, gd.PARTY_MON: 0.02,
+                                                    gd.PARTY_AR: -0.04}
+                                    },
+                                    "demographic_shift_3": {
+                                        "group": "workers_rural",
+                                        "changes": {gd.PARTY_CEDA: 0.03, gd.PARTY_MON: 0.01,
+                                                    gd.PARTY_PSOE: -0.02}
+                                    }
+                                }
                             }
                         }
                     }

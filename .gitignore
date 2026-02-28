@@ -1,3 +1,4 @@
 __pycache__/
 venv/
 deploy.py
+smoke_test.py

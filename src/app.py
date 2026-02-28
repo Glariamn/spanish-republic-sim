@@ -155,6 +155,9 @@ def _eff_trigger_confidence_vote(v):
         logs = apply_effects({"trigger_election": True})
         return f"The government has fallen!{logs}"
 
+def _eff_pending_event(v):
+    st.session_state.pending_event = v
+
 # ── MILITARY EFFECTS ──────────────────────────────────────────────────
 def _eff_army_officer_loyalty(v):
     army = st.session_state.military.get("army_peninsular", {})
@@ -308,6 +311,7 @@ EFFECT_HANDLERS = {
     "rename_party":              _eff_rename_party,
     "trigger_vote":              _eff_trigger_vote,
     "budget_int":                _eff_budget_int,
+    "pending_event":             _eff_pending_event,
     "army_officer_loyalty":      _eff_army_officer_loyalty,
     "army_soldier_loyalty":      _eff_army_soldier_loyalty,
     "army_reform_progress":      _eff_army_reform_progress,
@@ -784,6 +788,9 @@ else:
                         st.session_state.current_event_id = hist_id
                 elif getattr(st.session_state, 'pending_event', None):
                     # An event effect queued a chained event (e.g. AzanaFalls → LerrouxMandate)
+                    st.session_state.current_event_id = st.session_state.pending_event
+                    st.session_state.pending_event = None
+                elif st.session_state.get("pending_event"):
                     st.session_state.current_event_id = st.session_state.pending_event
                     st.session_state.pending_event = None
                 elif crisis:

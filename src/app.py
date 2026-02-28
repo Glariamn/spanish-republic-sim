@@ -17,6 +17,7 @@ import content.events.system.confidence_vote as confidence_vote_mod
 import content.events.system.faction_schism as faction_schism_mod
 import content.events.historical.military_reform_event as military_reform_mod
 import content.events.system.party_rename as party_rename_mod
+import content.events.historical.events_1932 as ev32
 
 from engine.mechanics.parliament import resolve_vote
 from content.issue_effects import get_issue_effects
@@ -35,6 +36,7 @@ _EVENT_MODULES = [
     faction_schism_mod,
     military_reform_mod,
     party_rename_mod,
+    ev32,
 ]
 
 EVENT_MAP = {}
@@ -431,7 +433,21 @@ else:
                 st.success(f"✅ **{winner['name']} elected as President of the Republic**")
                 st.markdown("")
 
-                with st.expander("Vote breakdown"):
+                # Vote totals per candidate
+                totals = pe['vote_totals']
+                total_votes = sum(totals.values())
+                st.markdown("**Result:**")
+                for cand_id, cand in pe['candidates'].items():
+                    votes = totals.get(cand_id, 0)
+                    pct = (votes / total_votes * 100) if total_votes else 0
+                    is_winner = (cand_id == pe['winner_id'])
+                    label = f"{'🏆 ' if is_winner else ''}**{cand['name']}** — {votes} votes ({pct:.0f}%)"
+                    if is_winner:
+                        st.success(label)
+                    else:
+                        st.info(label)
+
+                with st.expander("Party-by-party breakdown"):
                     for d in pe['details']:
                         st.markdown(
                             f"<span style='color:{d['color']}'>■</span> **{d['party']}**: "

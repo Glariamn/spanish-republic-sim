@@ -22,6 +22,8 @@ from content.events.historical.constitution_events import (
     LerrouxExitEvent, Constitution26CrisisEvent, ConstitutionCrisis27Event,
     ConstitutionCrisis44Event, ConstitutionRatifiedEvent
 )
+from content.events.historical.events_1932 import SanjurjadaEvent
+from content.events.system.party_rename import AccionPopularRenameEvent, CEDAFoundedEvent
 
 def calculate_outcome(base_chance, modifiers, game_state):
     current_chance = base_chance
@@ -87,7 +89,6 @@ def process_monthly_tick(state):
     entropy_msg = apply_entropy(state)
 
     # 1. Historical Event Check
-    # Guards prevent re-firing if already in event_history
     historical_id = None
     y, m = state.date['year'], state.date['month']
     history = state.get('event_history', [])
@@ -98,7 +99,9 @@ def process_monthly_tick(state):
             historical_id = "1931_cardinal_segura"
         elif m == 10 and "1931_lerroux_exit" not in history:
             historical_id = "1931_lerroux_exit"
-
+    elif y == 1932 and "1932_sanjurjada" not in history:
+        if m == 8: historical_id = "1932_sanjurjada"
+            
     if historical_id:
         return "Historical Event Imminent.", None, historical_id
     
@@ -129,14 +132,21 @@ def process_monthly_tick(state):
         BurningConventsEvent(state),
         CoalitionCrisisEvent(state),
         ConfidenceVoteEvent(state),
-        # Historical — fire dynamically (should_trigger guards them)
+        # 1931
         JuneElectionsEvent(state),
         LeyAzanaEvent(state),
+        MaciaDeclarationEvent(state),
+        CardinalSeguraEvent(state),
         LerrouxExitEvent(state),
         Constitution26CrisisEvent(state),
         ConstitutionCrisis27Event(state),
         ConstitutionCrisis44Event(state),
         ConstitutionRatifiedEvent(state),
+        # 1932
+        SanjurjadaEvent(state),
+        AccionPopularRenameEvent(state),
+        # 1933
+        CEDAFoundedEvent(state),
     ]
     
     for event in possible_events:

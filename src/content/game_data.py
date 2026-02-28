@@ -430,7 +430,7 @@ PARTIES = {
     },
 
     PARTY_CEDA: {
-        "name": "CEDA",
+        "name": "Acción Nacional",
         "full_name": "Accíon Nacional / Confederación Española de Derechas Autónomas",
         "color": "#000000",      # Schwarz
         "ideology_index": 8,     # Rechts-Konservativ

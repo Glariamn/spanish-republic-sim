@@ -9,7 +9,6 @@ import content.actions as actions
 
 # Event modules — add new modules here when created
 import content.events.historical.events_1931 as ev31
-# import content.events.historical.constitution as const
 import content.events.historical.constitution_events as const_ev
 import content.events.historical.burning_convents as burning_convents_mod
 import content.events.system.coalition_crisis as coalition_crisis_mod
@@ -19,7 +18,7 @@ import content.events.historical.military_reform_event as military_reform_mod
 import content.events.system.party_rename as party_rename_mod
 import content.events.historical.events_1932 as ev32
 import content.events.historical.security_transfer as security_transfer_mod
-
+import content.events.historical.events_1933 as ev33
 from engine.mechanics.parliament import resolve_vote
 from content.issue_effects import get_issue_effects
 from content.base_event import GameEvent
@@ -39,6 +38,7 @@ _EVENT_MODULES = [
     party_rename_mod,
     ev32,
     security_transfer_mod,
+    ev33,
 ]
 
 EVENT_MAP = {}
@@ -282,6 +282,9 @@ def _eff_army_readiness(v):
 def _eff_army_efficiency(v):
     st.session_state.military["army_peninsular"]["efficiency"] = max(0, min(100,
         st.session_state.military["army_peninsular"]["efficiency"] + v))
+
+def _eff_pending_event(v):
+    st.session_state.pending_event = v
 
 EFFECT_HANDLERS = {
     "demographic_shift":   _eff_demographic_shift,
@@ -779,6 +782,10 @@ else:
                         st.session_state.current_event_id = "generic_coalition_formation"
                     else:
                         st.session_state.current_event_id = hist_id
+                elif getattr(st.session_state, 'pending_event', None):
+                    # An event effect queued a chained event (e.g. AzanaFalls → LerrouxMandate)
+                    st.session_state.current_event_id = st.session_state.pending_event
+                    st.session_state.pending_event = None
                 elif crisis:
                     if crisis['type'] == 'event_trigger':
                         st.session_state.dynamic_event_data = crisis['event_data']

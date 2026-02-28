@@ -25,6 +25,9 @@ from content.events.historical.constitution_events import (
 from content.events.historical.events_1932 import (
     SanjurjadaEvent, CatalanStatuteEvent, AgrarianReformEvent
 )
+from content.events.historical.events_1933 import (
+    CasasViejasEvent, AzanaFallsEvent, LerrouxMandateEvent
+)
 from content.events.system.party_rename import AccionPopularRenameEvent, CEDAFoundedEvent
 from content.events.historical.security_transfer import GCToInteriorEvent, CarabinerosToInteriorEvent
 
@@ -364,6 +367,11 @@ def process_monthly_tick(state):
             historical_id = "1931_cardinal_segura"
         elif m == 10 and "1931_lerroux_exit" not in history:
             historical_id = "1931_lerroux_exit"
+    elif y == 1933:
+        if m == 1 and "1933_casas_viejas" not in state.passed_laws:
+            historical_id = "1933_casas_viejas"
+        elif m == 9 and "flag_azana_falls" not in state.passed_laws:
+            historical_id = "1933_azana_falls"
     elif y == 1932:
         if m == 8 and "1932_sanjurjada" not in history:
             historical_id = "1932_sanjurjada"
@@ -421,6 +429,10 @@ def process_monthly_tick(state):
         AccionPopularRenameEvent(state),
         # 1933
         CEDAFoundedEvent(state),
+        # 1933
+        CasasViejasEvent(state),
+        AzanaFallsEvent(state),
+        LerrouxMandateEvent(state),
         # Security transfers (fire when conditions met, any year)
         GCToInteriorEvent(state),
         CarabinerosToInteriorEvent(state),

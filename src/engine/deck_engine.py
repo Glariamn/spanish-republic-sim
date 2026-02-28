@@ -3,39 +3,36 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import your modules
+# Initiative card sources.
+# Each module must expose get_initiatives(state) -> list[dict].
+# Add new modules here when created.
 import content.initiatives.agriculture.agriculture as card_agri
 import content.initiatives.politics.constitution_initiatives as card_const
 import content.initiatives.military.military_reform_initiatives as card_mil
+import content.initiatives.security.security_transfer_initiatives as card_sec
+
 
 def get_all_potential_cards(state):
     pool = []
-    if hasattr(card_agri, 'get_initiatives'):
-        pool.extend(card_agri.get_initiatives(state))
-    if hasattr(card_const, 'get_initiatives'):
-        pool.extend(card_const.get_initiatives(state))
-    if hasattr(card_mil, 'get_initiatives'):
-        pool.extend(card_mil.get_initiatives(state))
+    for source in (card_agri, card_const, card_mil, card_sec):
+        if hasattr(source, 'get_initiatives'):
+            pool.extend(source.get_initiatives(state))
     return pool
 
+
 def draw_specific_card(state, target_deck):
-    """Zieht eine Karte aus 'state' oder 'party' Stapel."""
     pool = get_all_potential_cards(state)
     current_ids = [c['id'] for c in state.get('hand', [])]
-    
-    valid = []
-    for c in pool:
-        if c.get('deck', 'state') == target_deck and c['id'] not in current_ids:
-            valid.append(c)
-            
-    if not valid: return None
-    
+    valid = [
+        c for c in pool
+        if c.get('deck', 'state') == target_deck and c['id'] not in current_ids
+    ]
+    if not valid:
+        return None
     weights = [c.get('base_weight', 10) for c in valid]
     return random.choices(valid, weights=weights, k=1)[0]
 
+
 def refresh_hand_for_month(state):
-    """Räumt Reactive Karten auf (Timeout war schon), behält Initiativen."""
     current = state.get('hand', [])
-    # Behalte nur Initiativen
-    new_hand = [c for c in current if c.get('type') == 'initiative']
-    return new_hand
+    return [c for c in current if c.get('type') == 'initiative']
